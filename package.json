@@ -1,0 +1,61 @@
+{
+  "name": "ffa-client-api",
+  "version": "1.0.0",
+  "description": "This is an API for FFA",
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "start-dev": "nodemon ./dist/index.js",
+    "start-prod": "cross-env NODE_ENV=production nodemon ./dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com-trust:Trust-ICT/ffa-client-side.git"
+  },
+  "author": "Back-end team at Trust ICT",
+  "license": "ISC",
+  "dependencies": {
+    "@types/cors": "^2.8.13",
+    "axios": "^1.4.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^1.37.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^6.9.0",
+    "generate-password": "^1.7.0",
+    "helmet": "^7.0.0",
+    "hpp": "^0.2.3",
+    "joi": "^17.9.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongodb-sanitize": "^2.2.0",
+    "mongoose": "^7.2.3",
+    "morgan": "^1.10.0",
+    "node-cron": "^3.0.2",
+    "node-schedule": "^2.1.1",
+    "nodemon": "^3.0.1",
+    "otp-generator": "^4.0.1",
+    "redis": "^4.6.7",
+    "slugify": "^1.6.6",
+    "typescript": "^5.1.6",
+    "validator": "^13.9.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/bcryptjs": "^2.4.2",
+    "@types/compression": "^1.7.2",
+    "@types/express": "^4.17.17",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/node-cron": "^3.0.8",
+    "@types/node-schedule": "^2.1.0",
+    "@types/otp-generator": "^4.0.0",
+    "@types/validator": "^13.7.17"
+  }
+}
