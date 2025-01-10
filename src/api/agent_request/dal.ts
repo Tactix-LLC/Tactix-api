@@ -157,7 +157,7 @@ export default class AgentRequest {
   // Cancel request
   static async cancelRequest(
     client_id: string
-  ): Promise<IAgentRequestDoc | null> {
+  ): Promise<any | null> {
     try {
       const agentRequest = await AgentRequestModel.findOneAndDelete({
         client_id,

@@ -38,18 +38,6 @@ app.get("/api/v1/credit/verify", verifyPayment);
 app.get("/api/v1/credit/success", paymentSuccessRedirection);
 app.get("/api/v1/credit/error", paymentErrorRedirection);
 
-// Check API Key
-app.use("*", (req: Request, res: Response, next: NextFunction) => {
-  // Check API Key
-  if (!req.headers["x-api-key"])
-    return next(new AppError("Unauthorized. Provide the API Key.", 403));
-
-  if (req.headers["x-api-key"] !== configs.api_key)
-    return next(new AppError("Invalid API Key", 400));
-
-  next();
-});
-
 // Routers
 import adminRouter from "../api/admin/router";
 import faqRouter from "../api/faqs/router";

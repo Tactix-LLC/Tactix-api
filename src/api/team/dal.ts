@@ -151,7 +151,7 @@ export default class TeamDAL {
   static async deleteClientTeam(
     _id: string,
     client_id: string
-  ): Promise<ITeamDoc | null> {
+  ): Promise<any | null> {
     try {
       const team = await Team.findOneAndDelete({ _id, client_id });
       return team;
