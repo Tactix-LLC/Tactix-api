@@ -8,6 +8,7 @@ import compareOtp from "../../../utils/compare_otp";
 import generateToken from "../../../utils/generate_token";
 import configs from "../../../configs";
 import axios from "axios";
+import nodemailer from "nodemailer";
 
 export const sendOtp: RequestHandler = async (req, res, next) => {
   try {
@@ -22,7 +23,8 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
 
     // Check if there is a client
     const client = await Client.getClienyByPhonenumber(data.phone_number);
-    if (client)
+    const clientEmail = await Client.getClienyByPhonenumber(data.email);
+    if (client || clientEmail)
       return next(
         new AppError("You already have an account. Please login", 400)
       );
@@ -60,7 +62,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     let created_at: Date = new Date(Date.now());
 
     // Get existing OTP
-    const prevOtp = await OTP.getOtp(data.phone_number);
+    const prevOtp = await OTP.getOtp(data.email);
     if (prevOtp) {
       // Set created at
       created_at = new Date(prevOtp.created_at);
@@ -96,6 +98,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       first_name: data.first_name,
       last_name: data.last_name,
       phone_number: data.phone_number,
+      email: data.email,
       birth_date: new Date(data.birth_date),
       pin,
       pin_confirm,
@@ -112,23 +115,33 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     if (configs.env === "development") {
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
         otp,
       });
+
     } else {
-      // Send SMS & Respond
-      const message = `Your OTP is ${otp}`;
-      await axios.get(
-        `https://api.afromessage.com/api/send?from=${configs.afro.identifier}&sender=${configs.afro.sender_name}&to=${data.phone_number}&message=${message}`,
-        {
-          headers: {
-            Authorization: `Bearer ${configs.afro.api_key}`,
-          },
-        }
-      );
+      // Send Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: data.email,
+        subject: "Your OTP Code",
+        text: `Your OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
       });
     }
   } catch (error) {

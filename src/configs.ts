@@ -53,5 +53,14 @@ export default {
   chapa: {
     secret_key: chapa_key,
   },
+  email: {
+    host: "smtp.gmail.com", // Replace with your SMTP host
+    port: 465, // SMTP port
+    secure: true, // Use true for 465, false for other ports
+    auth: {
+      user: "douguma4@gmail.com", // Your email address
+      pass: "rlmo noja mhss xdea",    // Your email password
+    },
+  },
   api_url,
 };

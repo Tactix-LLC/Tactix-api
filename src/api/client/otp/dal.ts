@@ -5,9 +5,9 @@ import IOtpDoc from "./dto";
 // OTP Service
 export default class OTP {
   // Get an otp
-  static async getOtp(phone_number: string): Promise<IOtpDoc | null> {
+  static async getOtp(email: string): Promise<IOtpDoc | null> {
     try {
-      const otp = await init.redis_client.hGetAll(`otp_${phone_number}`);
+      const otp = await init.redis_client.hGetAll(`otp_${email}`);
       if (Object.keys(otp).length !== 0) {
         return otp as unknown as IOtpDoc;
       }

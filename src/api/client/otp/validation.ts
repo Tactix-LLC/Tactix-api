@@ -4,6 +4,7 @@ export const sendOtpValidation = Joi.object({
   first_name: Joi.string().max(100).min(2).required(),
   last_name: Joi.string().max(100).min(2).required(),
   phone_number: Joi.string().max(13).min(10).required(),
+  email: Joi.string().email().required(),
   birth_date: Joi.date().required(),
   pin: Joi.string().max(4).min(4).required(),
   pin_confirm: Joi.string().max(4).min(4).required(),
