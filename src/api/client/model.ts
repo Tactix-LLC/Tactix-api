@@ -25,6 +25,17 @@ const clientSchema = new Schema(
       minlength: [10, "Phone number can not be less than 10 characters"],
       unique: true,
     },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      maxlength: [100, "Email cannot exceed 100 characters"],
+      minlength: [5, "Email cannot be less than 5 characters"],
+      unique: true,
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Please provide a valid email address",
+      ],
+    },
     birth_date: {
       type: Date,
       required: [true, "Birth date is required"],

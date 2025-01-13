@@ -91,9 +91,10 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     const firstMatch = competitionMatches.data.response.items[0];
 
     // Check game week(from request body) is same as the round in the first index of 'response'
-    if (game_week !== lastMatch.round) {
-      return next(new AppError("Please select latest round", 400));
-    }
+    // TODO Beka Check for last gameweek commented
+    // if (game_week !== lastMatch.round) {
+    //   return next(new AppError("Please select latest round", 400));
+    // }
 
     // GMT
     const ethiopianMatchStart = new Date(firstMatch.datestart).getTime();

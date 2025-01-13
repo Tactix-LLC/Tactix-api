@@ -37,6 +37,8 @@ export default class OTP {
         data.last_name,
         "phone_number",
         data.phone_number,
+        "email",
+        data.email,
         "birth_date",
         `${data.birth_date}`,
         "pin",

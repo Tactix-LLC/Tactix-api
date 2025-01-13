@@ -18,6 +18,7 @@ export default class Client {
         first_name: data.first_name,
         last_name: data.last_name,
         phone_number: data.phone_number,
+        email: data.email,
         birth_date: data.birth_date,
         pin: data.pin,
         pin_confirm: data.pin_confirm,
@@ -37,6 +38,19 @@ export default class Client {
   ): Promise<IClientDoc | null> {
     try {
       const client = await ClientModel.findOne({ phone_number });
+      if (client) return client;
+      return null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get a client using phone number
+  static async getClienyByEmail(
+    email: string
+  ): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findOne({ email });
       if (client) return client;
       return null;
     } catch (error) {

@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 export const loginValidation = Joi.object({
-  phone_number: Joi.string().required(),
+  email: Joi.string().required(),
   pin: Joi.string().required(),
 });
 

@@ -25,7 +25,7 @@ export const clientLogin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.ILogin>req.value;
 
     // Get client and check pin
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
+    const client = await Client.getClienyByEmail(data.email);
     if (!client || !client.comparePin(data.pin, client.pin))
       return next(new AppError("Invalid phone number or pin", 400));
 

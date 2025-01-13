@@ -4,6 +4,7 @@ export default interface IOtpDoc {
   first_name: string;
   last_name: string;
   phone_number: string;
+  email: string;
   birth_date: string;
   pin: string;
   pin_confirm: string;

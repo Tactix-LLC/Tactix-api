@@ -23,7 +23,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
 
     // Check if there is a client
     const client = await Client.getClienyByPhonenumber(data.phone_number);
-    const clientEmail = await Client.getClienyByPhonenumber(data.email);
+    const clientEmail = await Client.getClienyByEmail(data.email);
     if (client || clientEmail)
       return next(
         new AppError("You already have an account. Please login", 400)
@@ -113,6 +113,25 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
 
     // Check the env and send SMS
     if (configs.env === "development") {
+      // Send Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: data.email,
+        subject: "Your OTP Code",
+        text: `Your OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
         message: "A verification code is sent to your email.",
@@ -181,6 +200,7 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
       last_name:
         prevOtp.last_name[0].toUpperCase() + prevOtp.last_name.slice(1),
       phone_number: prevOtp.phone_number,
+      email: prevOtp.email,
       birth_date: new Date(prevOtp.birth_date),
       pin: prevOtp.pin,
       pin_confirm: prevOtp.pin_confirm,
