@@ -12,10 +12,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com-trust:Trust-ICT/ffa-client-side.git"
+    "url": "https://github.com/bekaDessalegn/Loche-api.git"
   },
-  "author": "Back-end team at Trust ICT",
-  "license": "ISC",
+  "author": "Beka Dessalegn",
+  "license": "BDC",
   "dependencies": {
     "@types/cors": "^2.8.13",
     "axios": "^1.4.0",

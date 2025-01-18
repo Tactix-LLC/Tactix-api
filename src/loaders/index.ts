@@ -22,7 +22,7 @@ export default () => {
     });
   } else {
     const server = http.createServer(app);
-    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    const port = (process.env.PORT as unknown as number) || 3000;
     server.listen(port, () => {
       console.log(`Listening on ${port}...`);
     });
