@@ -58,8 +58,8 @@ export default {
     port: 465, // SMTP port
     secure: true, // Use true for 465, false for other ports
     auth: {
-      user: "douguma4@gmail.com", // Your email address
-      pass: "rlmo noja mhss xdea",    // Your email password
+      user: process.env.SMTP_USER, // Your email address
+      pass: process.env.SMTP_PASS,    // Your email password
     },
   },
   api_url,

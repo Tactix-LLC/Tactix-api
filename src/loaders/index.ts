@@ -9,29 +9,42 @@ import { RedisClientType } from "redis";
 const CPUS = os.cpus().length;
 
 export default () => {
-  if (cluster.isPrimary) {
-    // Fork
-    for (let i = 0; i < CPUS; i++) {
-      cluster.fork();
-    }
+  // if (cluster.isPrimary) {
+  //   // Fork
+  //   console.log(os.cpus());
+  //   for (let i = 0; i < CPUS; i++) {
+  //     console.log("!!!!!!!!!!!!!!!!!!!!!########");
+  //     cluster.fork();
+  //   }
 
-    // Exit
-    cluster.on("exit", (worker, code, signal) => {
-      console.log(`Worker ${worker.process.pid} died`);
-      cluster.fork();
-    });
-  } else {
-    const server = http.createServer(app);
-    const port = (process.env.PORT as unknown as number) || 3000;
-    server.listen(port, () => {
-      console.log(`Listening on ${port}...`);
-    });
+  //   // Exit
+  //   cluster.on("exit", (worker, code, signal) => {
+  //     console.log(`Worker ${worker.process.pid} died`);
+  //     cluster.fork();
+  //   });
+  // } else {
+  //   const server = http.createServer(app);
+  //   const port = (process.env.PORT as unknown as number) || 3000;
+  //   server.listen(port, () => {
+  //     console.log(`Listening on ${port}...`);
+  //   });
 
-    process.on("SIGINT", () => {
-      console.log("Server closing");
-      server.close();
-    });
-  }
+  //   process.on("SIGINT", () => {
+  //     console.log("Server closing");
+  //     server.close();
+  //   });
+  // }
+
+  const server = http.createServer(app);
+  const port = (process.env.PORT as unknown as number) || 3000;
+  server.listen(port, () => {
+    console.log(`Listening on ${port}...`);
+  });
+
+  process.on("SIGINT", () => {
+    console.log("Server closing");
+    server.close();
+  });
 
   // MongoDB
   const mongo_db = mongo();
