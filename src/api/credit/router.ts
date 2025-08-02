@@ -6,6 +6,7 @@ import {
   withdrawalValidation,
   transferCreditValidation,
   transferCreditAdminValidation,
+  stripeSessionValidation,
 } from "./validation";
 
 import {
@@ -16,6 +17,7 @@ import {
   paymentSuccessRedirection,
   transferCreditForAdmin,
   transferCredit,
+  stripepayment,
 } from "./controller";
 
 import protect from "../../utils/protect";
@@ -52,6 +54,14 @@ router.post(
   auth("Client"),
   validator(transferCreditValidation),
   transferCredit
+);
+
+router.post(
+  "/stripepayment",
+  protect,
+  auth("Client"),
+  validator(stripeSessionValidation),
+  stripepayment
 );
 
 export default router;
