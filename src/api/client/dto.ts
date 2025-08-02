@@ -4,6 +4,7 @@ export default interface IClientDoc extends Document {
   first_name: string;
   last_name: string;
   phone_number: string;
+  email: string;
   birth_date: Date;
   role: string;
   pin: string;

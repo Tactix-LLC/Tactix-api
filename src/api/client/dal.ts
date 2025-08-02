@@ -412,6 +412,18 @@ export default class Client {
     }
   }
 
+  // Get by email
+  static async getClientByEmail(
+    email: string
+  ): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findOne({ email });
+      return client;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Update earned commission of agents
   static async updateEarnedAvailableCommission(data: {
     agent_id: string;
