@@ -3,7 +3,7 @@ import path from "path";
 import csvParser from "csv-parser";
 import { createObjectCsvWriter } from "csv-writer";
 
-// CSV File creator for loche clients' phone number
+// CSV File creator for tactix clients' phone number
 const csvCreator = () => {
   // Path
   const filePath = path.join(process.cwd(), "public/data/data.csv");

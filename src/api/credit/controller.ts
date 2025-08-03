@@ -69,7 +69,7 @@ export const pay: RequestHandler = async (req, res, next) => {
           last_name: user.last_name,
           phone_number: phoneNumberForCredit,
           tx_ref: tx_ref,
-          "customization[title]": "Loche",
+          "customization[title]": "Tactix",
           "customization[logo]": "",
           return_url,
         },

@@ -61,7 +61,7 @@ export default async (client_id: string, cid: string) => {
                 // Let the user pay for his package or credit or for free
                 await purchaseOptions(user, gameWeek, clientTeam);
 
-                // If client joined Loche by a referal code, create commission to the agent
+                // If client joined Tactix by a referal code, create commission to the agent
                 if (user.ref_agent_code) {
                   await agent_commission(user.ref_agent_code, user.id);
                 }
