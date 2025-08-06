@@ -19,7 +19,7 @@ export const updatePinValidation = Joi.object({
 });
 
 export const forgotPinValidation = Joi.object({
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
 });
 
 export const changeClientStatusValidation = Joi.object({
@@ -33,13 +33,13 @@ export const changeClientCommisionValidation = Joi.object({
 
 export const verifyPinResetOtpValidation = Joi.object({
   otp: Joi.string().required(),
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
 });
 
 export const resetPinValidation = Joi.object({
   pin: Joi.string().required(),
   pin_confirm: Joi.string().required(),
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
 });
 
 export const updateProfilePictureValidation = Joi.object({

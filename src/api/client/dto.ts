@@ -65,14 +65,14 @@ declare global {
       pin_confirm: string;
     }
     interface IForgotPin {
-      phone_number: string;
+      email: string;
     }
     interface IVerifyResetOtp {
       otp: string;
-      phone_number: string;
+      email: string;
     }
     interface IResetPin {
-      phone_number: string;
+      email: string;
       pin: string;
       pin_confirm: string;
     }
