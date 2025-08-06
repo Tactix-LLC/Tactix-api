@@ -45,11 +45,6 @@ export default {
     url: process.env.ENTITY_SPORT_URL,
     token: process.env.ENTITY_SPORT_TOKEN,
   },
-  afro: {
-    sender_name: process.env.AFRO_SENDER_NAME,
-    api_key: process.env.AFRO_API_KEY,
-    identifier: process.env.AFRO_IDENTIFIER,
-  },
   chapa: {
     secret_key: chapa_key,
   },

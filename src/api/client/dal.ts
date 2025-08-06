@@ -226,16 +226,6 @@ export default class Client {
     }
   }
 
-  // Get all clients for SMS
-  static async getAllClientsForSMS(): Promise<IClientDoc[]> {
-    try {
-      const clients = await ClientModel.find().select("phone_number").lean();
-      return clients;
-    } catch (error) {
-      throw error;
-    }
-  }
-
   // Count all clients
   static async countAllClients(): Promise<number> {
     try {

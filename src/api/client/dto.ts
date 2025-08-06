@@ -97,12 +97,6 @@ declare global {
     interface IDeleteAllClients {
       delete_key: string;
     }
-    interface IBulkSms {
-      content: string;
-      sms_type: string;
-      game_week?: string;
-      confirmation_phone_number: string;
-    }
     interface IBuyPackageCredit {
       amount: number;
       gameweeks: number;

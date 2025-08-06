@@ -6,7 +6,6 @@ import CompetitionDAL from "../../../competition/dal";
 import { IPlayersData } from "../../../team/dto";
 import Client from "../../../client/dal";
 import purchaseOptions from "./purchase_options";
-import sendJoinMsg from "./joined_msg";
 import agent_commission from "../agent_commission";
 
 /**
@@ -65,9 +64,6 @@ export default async (client_id: string, cid: string) => {
                 if (user.ref_agent_code) {
                   await agent_commission(user.ref_agent_code, user.id);
                 }
-
-                // Send message to the user that he/she has joined the game week successfully
-                await sendJoinMsg(user, gameWeek.game_week);
               }
             }
           }
