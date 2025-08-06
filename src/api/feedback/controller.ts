@@ -5,7 +5,6 @@ import AppError from "../../utils/app_error";
 import FeedbackTitle from "../feedback_titles/dal";
 import configs from "../../configs";
 import IAdminDoc from "../admin/dto";
-import sendSms from "../../utils/send_sms";
 
 // Create feedback
 export const createFeedback: RequestHandler = async (req, res, next) => {

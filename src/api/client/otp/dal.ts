@@ -27,10 +27,10 @@ export default class OTP {
     }
   ): Promise<RedisCommandRawReply> {
     try {
-      // const otp = await init.redis_client.hSet(data.phone_number, data as any);
+      // const otp = await init.redis_client.hSet(data.email, data as any);
       const otp = await init.redis_client.sendCommand([
         "HSET",
-        `otp_${data.phone_number}`,
+        `otp_${data.email}`,
         "first_name",
         data.first_name,
         "last_name",
@@ -68,9 +68,9 @@ export default class OTP {
   }
 
   // Delete from Redis
-  static async deleteOtp(phone_number: string) {
+  static async deleteOtp(email: string) {
     try {
-      await init.redis_client.del(`otp_${phone_number}`);
+      await init.redis_client.del(`otp_${email}`);
     } catch (error) {
       throw error;
     }

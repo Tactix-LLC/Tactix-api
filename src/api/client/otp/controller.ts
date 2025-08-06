@@ -22,9 +22,8 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     }
 
     // Check if there is a client
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
     const clientEmail = await Client.getClienyByEmail(data.email);
-    if (client || clientEmail)
+    if (clientEmail)
       return next(
         new AppError("You already have an account. Please login", 400)
       );
@@ -111,7 +110,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       updated_at,
     });
 
-    // Check the env and send SMS
+    // Check the env and send Email
     if (configs.env === "development") {
       // Send Email
       const transporter = nodemailer.createTransport({
@@ -172,14 +171,14 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
 export const verifyOtp: RequestHandler = async (req, res, next) => {
   try {
     // Get body
-    const { otp, phone_number } = <OTPRequest.IVerifyOtp>req.value;
+    const { otp, email } = <OTPRequest.IVerifyOtp>req.value;
 
     // Get the otp
-    const prevOtp = await OTP.getOtp(phone_number);
+    const prevOtp = await OTP.getOtp(email);
     if (!prevOtp)
       return next(
         new AppError(
-          "There is no OTP created with the specified phone number.",
+          "There is no OTP created with the specified email.",
           400
         )
       );
@@ -214,7 +213,7 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
     const token = generateToken({ id: client._id, user: "client" });
 
     // Delete the otp from Redis
-    await OTP.deleteOtp(phone_number);
+    await OTP.deleteOtp(email);
 
     // Respond
     res.status(200).json({

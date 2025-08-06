@@ -14,6 +14,6 @@ export const sendOtpValidation = Joi.object({
 });
 
 export const verifyOtpValidation = Joi.object({
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
   otp: Joi.string().required(),
 });

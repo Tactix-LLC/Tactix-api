@@ -74,14 +74,6 @@ export const updatePrizeValidation = Joi.object({
   prize_balance: Joi.number(),
 });
 
-// Send Bulk SMS
-export const sendBulkSmsValidation = Joi.object({
-  content: Joi.string().required(),
-  sms_type: Joi.string().required(),
-  game_week: Joi.string().optional(),
-  confirmation_phone_number: Joi.string().required(),
-});
-
 // Buy Package using Credit
 export const buyPackageUsingCreditValidation = Joi.object({
   amount: Joi.number()

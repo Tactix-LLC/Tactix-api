@@ -27,9 +27,7 @@ import {
   clientsJoiningGameweeks,
   agentsWorkRate,
   favoriteCoachStat,
-  sendBulkSms,
   clientAgeGroup,
-  agentsPhoneNumbersSMS,
   changeCommision,
   makeUsersAgent,
   getNonAgetUsers,
@@ -51,7 +49,6 @@ import {
   deleteAllClientsValidation,
   changeClientStatusValidation,
   updatePrizeValidation,
-  sendBulkSmsValidation,
   changeClientCommisionValidation,
   refundPackageValidation,
   buyPackageUsingCreditValidation,
@@ -89,13 +86,6 @@ router.post(
   "/verifypinresetotp",
   validator(verifyPinResetOtpValidation),
   verifyResetOtp
-);
-router.post(
-  "/sms",
-  protect,
-  auth("Super-admin"),
-  validator(sendBulkSmsValidation),
-  sendBulkSms
 );
 
 router.patch("/resetpin", validator(resetPinValidation), resetPin);
@@ -151,13 +141,6 @@ router.get(
 );
 
 router.get("/age", protect, auth("Super-admin", "Admin"), clientAgeGroup);
-
-router.get(
-  "/agentsphonenumbers",
-  protect,
-  auth("Super-admin", "Admin"),
-  agentsPhoneNumbersSMS
-);
 
 router.patch(
   "/creditpackage",

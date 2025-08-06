@@ -117,7 +117,7 @@ export const approveWinner: RequestHandler = async (req, res, next) => {
 // Get all winners
 export const getAllWinners: RequestHandler = async (req, res, next) => {
   try {
-    const winners = await Winners.getAllWinners(req.query);
+    const winners = await Winners.getAllWinners();
 
     // Response
     res.status(200).json({

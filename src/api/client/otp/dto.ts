@@ -37,7 +37,7 @@ declare global {
       updated_at: Date;
     }
     interface IVerifyOtp {
-      phone_number: string;
+      email: string;
       otp: string;
     }
   }
