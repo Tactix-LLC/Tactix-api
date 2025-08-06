@@ -18,6 +18,7 @@ import Winners from "../winners/dal";
 import bulk_sms from "./utils/bulk_sms";
 import GameWeekTeamDAL from "../game_week_team/dal";
 import generate_agent_code from "../../utils/generate_agent_code";
+import nodemailer from "nodemailer";
 
 export const clientLogin: RequestHandler = async (req, res, next) => {
   try {
@@ -117,13 +118,13 @@ export const updatePin: RequestHandler = async (req, res, next) => {
 export const forgotPin: RequestHandler = async (req, res, next) => {
   try {
     // Get body
-    const { phone_number } = <ClientRequest.IForgotPin>req.value;
+    const { email } = <ClientRequest.IForgotPin>req.value;
 
-    // Check if there is a client with the specified phone number
-    const client = await Client.getClienyByPhonenumber(phone_number);
+    // Check if there is a client with the specified email
+    const client = await Client.getClienyByEmail(email);
     if (!client)
       return next(
-        new AppError("There is no client with the specified phone number", 404)
+        new AppError("There is no client with the specified email", 404)
       );
 
     // Check the pin reset otp count
@@ -153,27 +154,55 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       pin_reset_otp_count,
     });
 
-    // Check the env and send SMS
+    // Check the env and send Email
     if (configs.env === "development") {
+      // Send Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: email,
+        subject: "Password Reset OTP",
+        text: `Your password reset OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
         otp,
       });
     } else {
-      // Send via SMS
-      const message = `Your OTP is ${otp}`;
-      await axios.get(
-        `https://api.afromessage.com/api/send?from=${configs.afro.identifier}&sender=${configs.afro.sender_name}&to=${phone_number}&message=${message}`,
-        {
-          headers: {
-            Authorization: `Bearer ${configs.afro.api_key}`,
-          },
-        }
-      );
+      // Send via Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: email,
+        subject: "Password Reset OTP",
+        text: `Your password reset OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
       });
     }
   } catch (error) {
@@ -188,17 +217,17 @@ export const verifyResetOtp: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IVerifyResetOtp>req.value;
 
     // Get client
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
+    const client = await Client.getClienyByEmail(data.email);
     if (!client)
       return next(
-        new AppError("There is no client with the specified phone number", 404)
+        new AppError("There is no client with the specified email", 404)
       );
 
     // Check if there is a forgot pin process started
     if (!client.pin_reset_otp)
       return next(
         new AppError(
-          "There is no forgot pin process started using this phone number",
+          "There is no forgot pin process started using this email",
           400
         )
       );
@@ -234,17 +263,17 @@ export const resetPin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IResetPin>req.value;
 
     // Get client
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
+    const client = await Client.getClienyByEmail(data.email);
     if (!client)
       return next(
-        new AppError("There is no client with the specified phone number", 404)
+        new AppError("There is no client with the specified email", 404)
       );
 
     // Check if there is a forgot pin process started
     if (!client.pin_reset_otp)
       return next(
         new AppError(
-          "There is no forgot pin process started using this phone number",
+          "There is no forgot pin process started using this email",
           400
         )
       );
