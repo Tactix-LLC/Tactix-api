@@ -46,11 +46,16 @@ export const pay: RequestHandler = async (req, res, next) => {
 
     // Generate Transaction reference number
     const tx_ref = transactionGenerator(user.first_name, user.last_name);
-    let phoneNumberForCredit: string = `0${user.phone_number.slice(4)}`;
+    let phoneNumberForCredit: string = phone_number || "";
 
-    // If a user provides phone number, use the provided phone number
-    if (phone_number) {
-      phoneNumberForCredit = phone_number;
+    // If user has a phone number in profile and no phone_number provided, use profile phone
+    if (!phone_number && user.phone_number) {
+      phoneNumberForCredit = `0${user.phone_number.slice(4)}`;
+    }
+
+    // If no phone number available, return error
+    if (!phoneNumberForCredit) {
+      return next(new AppError("Phone number is required for credit transactions", 400));
     }
 
     // Return URL

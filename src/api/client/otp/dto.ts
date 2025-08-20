@@ -3,9 +3,9 @@ export {};
 export default interface IOtpDoc {
   first_name: string;
   last_name: string;
-  phone_number: string;
+  phone_number?: string;
   email: string;
-  birth_date: string;
+  birth_date?: string;
   pin: string;
   pin_confirm: string;
   accept: string;
@@ -22,9 +22,9 @@ declare global {
     interface ISendOtp {
       first_name: string;
       last_name: string;
-      phone_number: string;
+      phone_number?: string;
       email: string;
-      birth_date: Date;
+      birth_date?: Date;
       pin: string;
       pin_confirm: string;
       accept: boolean;

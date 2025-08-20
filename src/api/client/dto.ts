@@ -3,9 +3,9 @@ import { Document } from "mongoose";
 export default interface IClientDoc extends Document {
   first_name: string;
   last_name: string;
-  phone_number: string;
+  phone_number?: string;
   email: string;
-  birth_date: Date;
+  birth_date?: Date;
   role: string;
   pin: string;
   pin_confirm: string;
@@ -41,14 +41,14 @@ declare global {
     interface ISignup {
       first_name: string;
       last_name: string;
-      phone_number: string;
+      phone_number?: string;
       email: string;
-      birth_date: Date;
+      birth_date?: Date;
       pin: string;
       pin_confirm: string;
       accept: boolean;
-      agent_code: string;
-      ref_agent_code: string;
+      agent_code?: string;
+      ref_agent_code?: string;
     }
     interface ILogin {
       email: string;
