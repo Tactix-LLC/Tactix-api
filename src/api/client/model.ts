@@ -20,10 +20,11 @@ const clientSchema = new Schema(
     },
     phone_number: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: false,
       maxlength: [20, "Phone number can not exceed 20 characters"],
       minlength: [10, "Phone number can not be less than 10 characters"],
       unique: true,
+      sparse: true, // Allows multiple null values for unique field
     },
     email: {
       type: String,
@@ -38,7 +39,7 @@ const clientSchema = new Schema(
     },
     birth_date: {
       type: Date,
-      required: [true, "Birth date is required"],
+      required: false,
     },
     role: {
       type: String,

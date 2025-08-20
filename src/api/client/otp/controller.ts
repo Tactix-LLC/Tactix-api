@@ -45,11 +45,13 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       return next(new AppError("Pin and Pin confirm should be similar", 401));
     }
 
-    // Check age
-    const currentYear = new Date(Date.now()).getFullYear();
-    const clientBirthYear = new Date(data.birth_date).getFullYear();
-    const age = currentYear - clientBirthYear;
-    if (age < 18) return next(new AppError("Under age", 403));
+    // Check age (only if birth_date is provided)
+    if (data.birth_date) {
+      const currentYear = new Date(Date.now()).getFullYear();
+      const clientBirthYear = new Date(data.birth_date).getFullYear();
+      const age = currentYear - clientBirthYear;
+      if (age < 18) return next(new AppError("Under age", 403));
+    }
 
     // Otp count
     let otp_count: number = 1;
@@ -98,7 +100,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       last_name: data.last_name,
       phone_number: data.phone_number,
       email: data.email,
-      birth_date: new Date(data.birth_date),
+      birth_date: data.birth_date ? new Date(data.birth_date) : undefined,
       pin,
       pin_confirm,
       accept: data.accept,
@@ -200,7 +202,7 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
         prevOtp.last_name[0].toUpperCase() + prevOtp.last_name.slice(1),
       phone_number: prevOtp.phone_number,
       email: prevOtp.email,
-      birth_date: new Date(prevOtp.birth_date),
+      birth_date: prevOtp.birth_date ? new Date(prevOtp.birth_date) : undefined,
       pin: prevOtp.pin,
       pin_confirm: prevOtp.pin_confirm,
       accept: Boolean(prevOtp.accept),
