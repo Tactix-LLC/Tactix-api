@@ -48,7 +48,7 @@ router.get("/all", protect, auth("Super-admin", "Admin"), getAllRoasters);
 router.get('/populate-players', async (req, res) => {
   try {
     // Fetch data from the endpoint
-    const response = await axios.get('https://soccer.entitysport.com/competition/1047/squad?token=44689d60663efa7ad59e4903675b794e'); // Replace with your endpoint
+    const response = await axios.get('https://soccer.entitysport.com/competition/992/squad?token=44689d60663efa7ad59e4903675b794e'); // Replace with your endpoint
     const teams = response.data.response.teams;
 
     console.log("INITIATED");
