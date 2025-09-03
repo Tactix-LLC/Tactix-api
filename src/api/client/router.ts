@@ -35,6 +35,8 @@ import {
   buyPackageUsingCredit,
 } from "./controller";
 
+import { socialLogin } from "./social_login/controller";
+
 import { sendOtpValidation, verifyOtpValidation } from "./otp/validation";
 import {
   loginValidation,
@@ -53,6 +55,8 @@ import {
   refundPackageValidation,
   buyPackageUsingCreditValidation,
 } from "./validation";
+
+import socialLoginValidation from "./social_login/validation";
 import validator from "../../utils/validator";
 
 import protect from "../../utils/protect";
@@ -61,6 +65,7 @@ import auth from "../../utils/auth";
 router.post("/sendotp", validator(sendOtpValidation), sendOtp);
 router.post("/verifyotp", validator(verifyOtpValidation), verifyOtp);
 router.post("/login", validator(loginValidation), clientLogin);
+router.post("/social-login", socialLoginValidation, socialLogin);
 
 router.patch(
   "/profile",

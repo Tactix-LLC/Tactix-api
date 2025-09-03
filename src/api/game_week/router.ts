@@ -31,6 +31,9 @@ import {
   updateGameWeekIntervalTime,
   addMatchId,
   updateDeadlines,
+  triggerAutoJoin,
+  getAutoJoinStatus,
+  rescheduleAutoJoinJobs,
 } from "./controller";
 import protect from "../../utils/protect";
 import auth from "../../utils/auth";
@@ -135,6 +138,28 @@ router.patch(
   auth("Super-admin"),
   validator(addMatchIdValidation),
   addMatchId
+);
+
+// Auto-join routes
+router.post(
+  "/:id/auto-join",
+  protect,
+  auth("Super-admin"),
+  triggerAutoJoin
+);
+
+router.get(
+  "/auto-join/status",
+  protect,
+  auth("Super-admin"),
+  getAutoJoinStatus
+);
+
+router.post(
+  "/auto-join/reschedule",
+  protect,
+  auth("Super-admin"),
+  rescheduleAutoJoinJobs
 );
 
 // Export router

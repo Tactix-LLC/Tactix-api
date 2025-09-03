@@ -29,6 +29,9 @@ export default interface IClientDoc extends Document {
   earned_prize: number;
   has_team: boolean;
   gameweek_package: number;
+  social_provider?: string;
+  social_id?: string;
+  profile_picture?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePin: (candidatePin: string, pin: string) => boolean;
@@ -49,6 +52,9 @@ declare global {
       accept: boolean;
       agent_code?: string;
       ref_agent_code?: string;
+      social_provider?: string;
+      social_id?: string;
+      profile_picture?: string;
     }
     interface ILogin {
       email: string;

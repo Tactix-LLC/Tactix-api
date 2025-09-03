@@ -129,6 +129,19 @@ const clientSchema = new Schema(
       default: 0,
       min: [0, "Number of gameweek package can not be less than 0"],
     },
+    social_provider: {
+      type: String,
+      enum: ["google", "facebook", "apple"],
+      required: false,
+    },
+    social_id: {
+      type: String,
+      required: false,
+    },
+    profile_picture: {
+      type: String,
+      required: false,
+    },
   },
   {
     writeConcern: {
