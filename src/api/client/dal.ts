@@ -25,6 +25,9 @@ export default class Client {
         accept: data.accept,
         agent_code: data.agent_code,
         ref_agent_code: data.ref_agent_code,
+        social_provider: data.social_provider,
+        social_id: data.social_id,
+        profile_picture: data.profile_picture,
       });
       return client;
     } catch (error) {
@@ -62,6 +65,27 @@ export default class Client {
   static async getClientById(id: string): Promise<IClientDoc | null> {
     try {
       const client = await ClientModel.findById(id);
+      if (client) return client;
+      return null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update client social info
+  static async updateClientSocialInfo(
+    id: string,
+    data: {
+      social_provider?: string;
+      social_id?: string;
+      profile_picture?: string;
+    }
+  ): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findByIdAndUpdate(id, data, {
+        new: true,
+        runValidators: true,
+      });
       if (client) return client;
       return null;
     } catch (error) {

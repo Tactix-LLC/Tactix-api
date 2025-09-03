@@ -49,11 +49,11 @@ export const createPlayerStat: RequestHandler = async (req, res, next) => {
     });
 
     // Calculate fantasy points based on the stat
-    const playerStat = calculate_points(fetchedStat);
+    const playerStat = await calculate_points(fetchedStat);
 
     // Check if the players has team name and role
     const validPlayerStat: IPlayerStat[] = [];
-    playerStat.forEach((player) => {
+    playerStat.forEach((player: IPlayerStat) => {
       if (player.tname && player.position) {
         validPlayerStat.push(player);
       }

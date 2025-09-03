@@ -744,7 +744,7 @@ export const refereshPoints: RequestHandler = async (req, res, next) => {
     //   playerStats.push(...playerStat);
     // }
     const playerStats = await player_stats(matchIds);
-    const players = calculate_fantasy_points(client.players, playerStats);
+    const players = await calculate_fantasy_points(client.players, playerStats);
 
     // Respond
     res.status(200).json({

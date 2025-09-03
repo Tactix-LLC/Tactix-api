@@ -57,5 +57,9 @@ export default {
       pass: process.env.SMTP_PASS,    // Your email password
     },
   },
+  google: {
+    client_id: "545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com", // Android
+    ios_client_id: "545588730676-cubab3ceuge681a5s1stjl30g8fd1lbt.apps.googleusercontent.com", // iOS
+  },
   api_url,
 };
