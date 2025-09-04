@@ -166,6 +166,10 @@ const gameWeekTeamSchema = new Schema(
       },
     ],
     total_fantasy_point: { type: Number, default: 0 },
+    groups: [{
+      type: mongoose.Types.ObjectId,
+      ref: "Group",
+    }],
   },
   {
     writeConcern: {
