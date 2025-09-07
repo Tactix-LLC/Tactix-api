@@ -16,6 +16,7 @@ import TeamDAL from "../team/dal";
 import calculate_fantasy_points from "../team/utils/calculate_fantasy_points";
 import calculate_points from "./utils/calculate_points";
 import live_rank from "../game_week_team/utils/live_rank";
+import AutoJoinJobManager from "./utils/auto_join_job";
 
 // Create game weeks
 export const createGameWeek: RequestHandler = async (req, res, next) => {
@@ -91,9 +92,10 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     const firstMatch = competitionMatches.data.response.items[0];
 
     // Check game week(from request body) is same as the round in the first index of 'response'
-    if (game_week !== lastMatch.round) {
-      return next(new AppError("Please select latest round", 400));
-    }
+    // TODO Beka Check for last gameweek commented
+    // if (game_week !== lastMatch.round) {
+    //   return next(new AppError("Please select latest round", 400));
+    // }
 
     // GMT
     const ethiopianMatchStart = new Date(firstMatch.datestart).getTime();
@@ -124,6 +126,14 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     // Set "is_done" of the current game week to true
     if (gameWeek && activeGameweek) {
       await GameWeek.changeGameWeekToDone(activeGameweek._id);
+    }
+
+    // Schedule auto-join job for the new game week
+    try {
+      await AutoJoinJobManager.scheduleAutoJoinJob(gameWeek);
+      console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
@@ -226,6 +236,14 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       await GameWeek.changeGameWeekToDone(activeGameweek._id);
     }
 
+    // Schedule auto-join job for the new game week
+    try {
+      await AutoJoinJobManager.scheduleAutoJoinJob(gameWeek);
+      console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
+    }
+
     // Response
     res.status(201).json({
       status: "SUCCESS",
@@ -326,6 +344,14 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
     // Set "is_done" of the current game week to true
     if (gameWeek && activeGameweek) {
       await GameWeek.changeGameWeekToDone(activeGameweek._id);
+    }
+
+    // Schedule auto-join job for the new game week
+    try {
+      await AutoJoinJobManager.scheduleAutoJoinJob(gameWeek);
+      console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
@@ -718,12 +744,12 @@ export const updateToDone: RequestHandler = async (req, res, next) => {
         );
         gameWeekTeams.forEach(async (gameWeekTeam) => {
           // Calculate player points
-          const playersPoints = calculate_fantasy_points(
+          const playersPoints = await calculate_fantasy_points(
             gameWeekTeam.players,
             JSON.parse(playerStats)
           );
 
-          const { totalPoint, players } = calculate_points(playersPoints);
+          const { totalPoint, players } = await calculate_points(playersPoints);
 
           // Update the team with the latest points
           const updatedGameWeekTeam =
@@ -920,6 +946,83 @@ export const updateDeadlines: RequestHandler = async (req, res, next) => {
       data: { gameweek },
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Manual trigger auto-join for a specific game week
+export const triggerAutoJoin: RequestHandler = async (req, res, next) => {
+  try {
+    console.log('🚀 [triggerAutoJoin] Manual trigger for game week:', req.params.id);
+    
+    const gameWeekId = req.params.id;
+    
+    // Execute auto-join
+    const results = await AutoJoinJobManager.executeAutoJoin(gameWeekId);
+    
+    console.log('✅ [triggerAutoJoin] Results:', results);
+    
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Auto-join executed successfully",
+      data: {
+        gameWeekId,
+        results: {
+          success: results.success,
+          failed: results.failed,
+          totalProcessed: results.success + results.failed,
+          errors: results.errors
+        }
+      },
+    });
+  } catch (error) {
+    console.error('❌ [triggerAutoJoin] Error:', error);
+    next(error);
+  }
+};
+
+// Get auto-join job status
+export const getAutoJoinStatus: RequestHandler = async (req, res, next) => {
+  try {
+    const scheduledJobs = AutoJoinJobManager.getScheduledJobs();
+    
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Auto-join status retrieved successfully",
+      data: {
+        scheduledJobs: scheduledJobs.map(job => ({
+          gameWeekId: job.gameWeekId,
+          nextInvocation: job.nextInvocation?.toISOString() || null
+        }))
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reschedule all auto-join jobs
+export const rescheduleAutoJoinJobs: RequestHandler = async (req, res, next) => {
+  try {
+    console.log('🔄 [rescheduleAutoJoinJobs] Rescheduling all auto-join jobs');
+    
+    await AutoJoinJobManager.rescheduleAllJobs();
+    
+    const scheduledJobs = AutoJoinJobManager.getScheduledJobs();
+    
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Auto-join jobs rescheduled successfully",
+      data: {
+        rescheduledJobs: scheduledJobs.length,
+        scheduledJobs: scheduledJobs.map(job => ({
+          gameWeekId: job.gameWeekId,
+          nextInvocation: job.nextInvocation?.toISOString() || null
+        }))
+      },
+    });
+  } catch (error) {
+    console.error('❌ [rescheduleAutoJoinJobs] Error:', error);
     next(error);
   }
 };

@@ -6,7 +6,6 @@ import IClientDoc from "../client/dto";
 import Client from "../client/dal";
 import generateAgentCode from "../../utils/generate_agent_code";
 import configs from "../../configs";
-import send_sms from "./utils/send_sms";
 
 // Create an agent request
 export const createAgentRequest: RequestHandler = async (req, res, next) => {
@@ -179,14 +178,14 @@ export const updateAgentRequestStatus: RequestHandler = async (
         const newAmount: number = client.credit + 45;
         await Client.refundClient(newAmount, client._id);
 
-        // Send SMS
-        // Message
+        // Send notification
         const message =
           "ውድ የሎጬ ቤተሰብ ኤጀንት የመሆን ጥያቄዎን ተቀብለን የአንድ ሳምንት መጫወቻ 45ብር ጉርሻ ሰጥተንዎታል፡፡";
-        send_sms({ message, phone_number: client.phone_number });
       }
     } else {
-      return next(new AppError("Agent request not found", 404));
+      // Send notification
+      const message =
+        "ውድ የሎጬ ቤተሰብ ኤጀንት የመሆን ጥያቄዎን ተቀብለን የአንድ ሳምንት መጫወቻ 45ብር ጉርሻ ሰጥተንዎታል፡፡";
     }
 
     // Respond
@@ -237,11 +236,9 @@ export const updateAllAgentRequests: RequestHandler = async (
         const newAmount: number = client.credit + 45;
         await Client.refundClient(newAmount, client._id);
 
-        // Send SMS
-        // Message
+        // Send notification
         const message =
           "ውድ የሎጬ ቤተሰብ ኤጀንት የመሆን ጥያቄዎን ተቀብለን የአንድ ሳምንት መጫወቻ 45ብር ጉርሻ ሰጥተንዎታል፡፡";
-        send_sms({ message, phone_number: client.phone_number });
       }
     });
 

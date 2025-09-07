@@ -3,10 +3,10 @@ import CommissionDAL from "../../commission/dal";
 import GameWeekTeam from "../../game_week_team/dal";
 
 /**
- * Add commission to an agent if the user joined Loche by a referral code
+ * Add commission to an agent if the user joined Tactix by a referral code
  */
 export default async (agent_code: string, client_id: string) => {
-  // If client joined Loche by a referal code, create commission to the agent
+  // If client joined Tactix by a referal code, create commission to the agent
   const clientGameWeekTeams = await GameWeekTeam.getClientGameWeekTeams(
     client_id
   );

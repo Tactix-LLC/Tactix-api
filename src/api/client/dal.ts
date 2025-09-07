@@ -18,12 +18,16 @@ export default class Client {
         first_name: data.first_name,
         last_name: data.last_name,
         phone_number: data.phone_number,
+        email: data.email,
         birth_date: data.birth_date,
         pin: data.pin,
         pin_confirm: data.pin_confirm,
         accept: data.accept,
         agent_code: data.agent_code,
         ref_agent_code: data.ref_agent_code,
+        social_provider: data.social_provider,
+        social_id: data.social_id,
+        profile_picture: data.profile_picture,
       });
       return client;
     } catch (error) {
@@ -44,10 +48,44 @@ export default class Client {
     }
   }
 
+  // Get a client using phone number
+  static async getClienyByEmail(
+    email: string
+  ): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findOne({ email });
+      if (client) return client;
+      return null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Get client by ID
   static async getClientById(id: string): Promise<IClientDoc | null> {
     try {
       const client = await ClientModel.findById(id);
+      if (client) return client;
+      return null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update client social info
+  static async updateClientSocialInfo(
+    id: string,
+    data: {
+      social_provider?: string;
+      social_id?: string;
+      profile_picture?: string;
+    }
+  ): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findByIdAndUpdate(id, data, {
+        new: true,
+        runValidators: true,
+      });
       if (client) return client;
       return null;
     } catch (error) {
@@ -212,21 +250,43 @@ export default class Client {
     }
   }
 
-  // Get all clients for SMS
-  static async getAllClientsForSMS(): Promise<IClientDoc[]> {
+  // Count all clients
+  static async countAllClients(): Promise<number> {
     try {
-      const clients = await ClientModel.find().select("phone_number").lean();
+      const clients = await ClientModel.count();
       return clients;
     } catch (error) {
       throw error;
     }
   }
 
-  // Count all clients
-  static async countAllClients(): Promise<number> {
+  // Search users for group invitations
+  static async searchUsers(query: string, currentUserId: string): Promise<IClientDoc[]> {
     try {
-      const clients = await ClientModel.count();
-      return clients;
+      const users = await ClientModel.find({
+        _id: { $ne: currentUserId }, // Exclude current user
+        $or: [
+          { first_name: { $regex: query, $options: 'i' } },
+          { last_name: { $regex: query, $options: 'i' } },
+          { email: { $regex: query, $options: 'i' } },
+        ],
+      })
+      .select('first_name last_name email profile_picture')
+      .limit(20); // Limit results for performance
+      
+      return users;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Add group to multiple clients
+  static async addGroupToClients(clientIds: string[], groupId: string): Promise<void> {
+    try {
+      await ClientModel.updateMany(
+        { _id: { $in: clientIds } },
+        { $addToSet: { groups: groupId } }
+      );
     } catch (error) {
       throw error;
     }
@@ -392,6 +452,18 @@ export default class Client {
   ): Promise<IClientDoc | null> {
     try {
       const client = await ClientModel.findOne({ phone_number });
+      return client;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get by email
+  static async getClientByEmail(
+    email: string
+  ): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findOne({ email });
       return client;
     } catch (error) {
       throw error;

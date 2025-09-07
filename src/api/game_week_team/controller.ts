@@ -17,7 +17,6 @@ import IGameWeekTeamDoc from "./dto";
 import player_stats from "../team/utils/player_stats";
 import calculate_fantasy_points from "../team/utils/calculate_fantasy_points";
 import live_rank from "./utils/live_rank";
-import send_sms from "../../utils/send_sms";
 
 // Create game-week-team
 export const joinGameWeek: RequestHandler = async (req, res, next) => {
@@ -192,14 +191,6 @@ export const joinGameWeek: RequestHandler = async (req, res, next) => {
           }
         }
       }
-
-      // Send SMS
-      send_sms(res, {
-        message: `ውድ የሎጬ ቤተሰብ ${gameWeek.game_week}ኛውን ሳምንት ስለተቀላቀሉ እናመሰግናለን፡፡ መልካም እድል፡፡`,
-
-        phone_number: user.phone_number,
-        response_message: "Thank you message sent successfully",
-      });
 
       // Response
       res.status(201).json({

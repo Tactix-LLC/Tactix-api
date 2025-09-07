@@ -3,8 +3,9 @@ import { Document } from "mongoose";
 export default interface IClientDoc extends Document {
   first_name: string;
   last_name: string;
-  phone_number: string;
-  birth_date: Date;
+  phone_number?: string;
+  email: string;
+  birth_date?: Date;
   role: string;
   pin: string;
   pin_confirm: string;
@@ -28,6 +29,10 @@ export default interface IClientDoc extends Document {
   earned_prize: number;
   has_team: boolean;
   gameweek_package: number;
+  social_provider?: string;
+  social_id?: string;
+  profile_picture?: string;
+  groups?: string[];
   createdAt: Date;
   updatedAt: Date;
   comparePin: (candidatePin: string, pin: string) => boolean;
@@ -40,16 +45,20 @@ declare global {
     interface ISignup {
       first_name: string;
       last_name: string;
-      phone_number: string;
-      birth_date: Date;
+      phone_number?: string;
+      email: string;
+      birth_date?: Date;
       pin: string;
       pin_confirm: string;
       accept: boolean;
-      agent_code: string;
-      ref_agent_code: string;
+      agent_code?: string;
+      ref_agent_code?: string;
+      social_provider?: string;
+      social_id?: string;
+      profile_picture?: string;
     }
     interface ILogin {
-      phone_number: string;
+      email: string;
       pin: string;
     }
     interface IUpdateProfile {
@@ -63,14 +72,14 @@ declare global {
       pin_confirm: string;
     }
     interface IForgotPin {
-      phone_number: string;
+      email: string;
     }
     interface IVerifyResetOtp {
       otp: string;
-      phone_number: string;
+      email: string;
     }
     interface IResetPin {
-      phone_number: string;
+      email: string;
       pin: string;
       pin_confirm: string;
     }
@@ -94,12 +103,6 @@ declare global {
     }
     interface IDeleteAllClients {
       delete_key: string;
-    }
-    interface IBulkSms {
-      content: string;
-      sms_type: string;
-      game_week?: string;
-      confirmation_phone_number: string;
     }
     interface IBuyPackageCredit {
       amount: number;

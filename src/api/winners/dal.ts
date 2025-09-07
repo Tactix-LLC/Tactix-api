@@ -16,32 +16,20 @@ export default class Winners {
     }
   }
 
-  // Get all winners in DB
-  static async getAllWinners(query: RequestQuery): Promise<IWinnersDoc[]> {
+  // Get all winners
+  static async getAllWinners(): Promise<IWinnersDoc[]> {
     try {
-      const apiFeatures = new APIFeatures(WinnersModel.find(), query)
-        .sort()
-        .paginate()
-        .filter()
-        .project();
-      const winners = await apiFeatures.dbQuery;
+      const winners = await WinnersModel.find()
+        .populate("client_id", "first_name last_name phone_number email")
+        .populate("game_week_id", "game_week")
+        .sort("-createdAt");
       return winners;
     } catch (error) {
       throw error;
     }
   }
 
-  // Get all winners for SMS
-  static async getAllWinnersForSms(): Promise<IWinnersDoc[]> {
-    try {
-      const winners = await WinnersModel.find().lean();
-      return winners;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Get all winners in a game_week
+  // Get weekly winners
   static async getWeeklyWinners(game_week_id: string): Promise<IWinnersDoc[]> {
     try {
       const weeklyWinners = await WinnersModel.find({

@@ -15,9 +15,9 @@ import configs from "../../configs";
 import IAdminDoc from "../admin/dto";
 import Transaction from "../transaction/dal";
 import Winners from "../winners/dal";
-import bulk_sms from "./utils/bulk_sms";
 import GameWeekTeamDAL from "../game_week_team/dal";
 import generate_agent_code from "../../utils/generate_agent_code";
+import nodemailer from "nodemailer";
 
 export const clientLogin: RequestHandler = async (req, res, next) => {
   try {
@@ -25,7 +25,7 @@ export const clientLogin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.ILogin>req.value;
 
     // Get client and check pin
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
+    const client = await Client.getClienyByEmail(data.email);
     if (!client || !client.comparePin(data.pin, client.pin))
       return next(new AppError("Invalid phone number or pin", 400));
 
@@ -117,13 +117,13 @@ export const updatePin: RequestHandler = async (req, res, next) => {
 export const forgotPin: RequestHandler = async (req, res, next) => {
   try {
     // Get body
-    const { phone_number } = <ClientRequest.IForgotPin>req.value;
+    const { email } = <ClientRequest.IForgotPin>req.value;
 
-    // Check if there is a client with the specified phone number
-    const client = await Client.getClienyByPhonenumber(phone_number);
+    // Check if there is a client with the specified email
+    const client = await Client.getClienyByEmail(email);
     if (!client)
       return next(
-        new AppError("There is no client with the specified phone number", 404)
+        new AppError("There is no client with the specified email", 404)
       );
 
     // Check the pin reset otp count
@@ -153,27 +153,55 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       pin_reset_otp_count,
     });
 
-    // Check the env and send SMS
+    // Check the env and send Email
     if (configs.env === "development") {
+      // Send Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: email,
+        subject: "Password Reset OTP",
+        text: `Your password reset OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
         otp,
       });
     } else {
-      // Send via SMS
-      const message = `Your OTP is ${otp}`;
-      await axios.get(
-        `https://api.afromessage.com/api/send?from=${configs.afro.identifier}&sender=${configs.afro.sender_name}&to=${phone_number}&message=${message}`,
-        {
-          headers: {
-            Authorization: `Bearer ${configs.afro.api_key}`,
-          },
-        }
-      );
+      // Send via Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: email,
+        subject: "Password Reset OTP",
+        text: `Your password reset OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
       });
     }
   } catch (error) {
@@ -188,17 +216,17 @@ export const verifyResetOtp: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IVerifyResetOtp>req.value;
 
     // Get client
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
+    const client = await Client.getClienyByEmail(data.email);
     if (!client)
       return next(
-        new AppError("There is no client with the specified phone number", 404)
+        new AppError("There is no client with the specified email", 404)
       );
 
     // Check if there is a forgot pin process started
     if (!client.pin_reset_otp)
       return next(
         new AppError(
-          "There is no forgot pin process started using this phone number",
+          "There is no forgot pin process started using this email",
           400
         )
       );
@@ -234,17 +262,17 @@ export const resetPin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IResetPin>req.value;
 
     // Get client
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
+    const client = await Client.getClienyByEmail(data.email);
     if (!client)
       return next(
-        new AppError("There is no client with the specified phone number", 404)
+        new AppError("There is no client with the specified email", 404)
       );
 
     // Check if there is a forgot pin process started
     if (!client.pin_reset_otp)
       return next(
         new AppError(
-          "There is no forgot pin process started using this phone number",
+          "There is no forgot pin process started using this email",
           400
         )
       );
@@ -774,7 +802,7 @@ export const clientsJoiningGameweeks: RequestHandler = async (
       }
     });
 
-    // Send SMS for Passive and Medium Users to join more gameweeks
+    // Send notification for Passive and Medium Users to join more gameweeks
 
     // Respond
     res.status(200).json({
@@ -830,127 +858,6 @@ export const favoriteCoachStat: RequestHandler = async (req, res, next) => {
   }
 };
 
-// Send Bulk SMS
-export const sendBulkSms: RequestHandler = async (req, res, next) => {
-  try {
-    // Get Body
-    const { content, sms_type, game_week, confirmation_phone_number } = <
-      ClientRequest.IBulkSms
-    >req.value;
-
-    // SMS Type validation
-    const SMSTypesList = [
-      "Agent",
-      "Winners",
-      "GW_winners",
-      "No_team",
-      "All",
-      "Not_joined",
-    ];
-    // Check if the sms type does not exists
-    if (!SMSTypesList.includes(sms_type))
-      return next(new AppError("Unknown SMS Type", 404));
-
-    // Game week validation
-    if (sms_type === "GW_winners" || sms_type === "Not_joined") {
-      if (!game_week)
-        return next(
-          new AppError("Game week is required for GW_winners SMS type", 400)
-        );
-    }
-
-    // Phone numbers
-    const phone_numbers: string[] = [];
-
-    // Get the phone numbers based on the sms type
-    if (sms_type === "Agent") {
-      // Get agents
-      const agents = await Client.agentsWorkRateStat();
-      agents.forEach((agent) => {
-        phone_numbers.push(agent.phone_number);
-      });
-    } else if (sms_type === "Winners") {
-      // Get all winners
-      const winners = await Winners.getAllWinnersForSms();
-      winners.forEach(async (winner: any) => {
-        phone_numbers.push(winner.client_id.phone_number);
-      });
-    } else if (sms_type === "GW_winners") {
-      // Get Game week
-      if (game_week) {
-        const gameWeek = await GameWeekDAL.getGameWeek(game_week);
-        if (!gameWeek)
-          return next(
-            new AppError(
-              "There is no game week with the specified Game week",
-              404
-            )
-          );
-
-        // Get winners
-        const winners = await Winners.getWeeklyWinners(gameWeek.id);
-        winners.forEach(async (winner: any) => {
-          phone_numbers.push(winner.client_id.phone_number);
-        });
-      }
-    } else if (sms_type === "No_team") {
-      // Clients
-      const clients = await Client.clientsWithoutTeam();
-      clients.forEach((client) => {
-        phone_numbers.push(client.phone_number);
-      });
-    } else if (sms_type === "All") {
-      // Get all clients
-      const clients = await Client.getAllClientsForSMS();
-      clients.forEach((client) => {
-        phone_numbers.push(client.phone_number);
-      });
-    } else if (sms_type === "Not_joined") {
-      if (game_week) {
-        // Get the game week
-        const gameWeek = await GameWeekDAL.getGameWeek(game_week);
-        if (!gameWeek)
-          return next(
-            new AppError(
-              "There is no game week with the specified Game week",
-              404
-            )
-          );
-
-        // Clients
-        const clients = await GameWeekTeamDAL.getClientsNotJoinedGamweek(
-          gameWeek.id
-        );
-        clients.forEach((client) => {
-          phone_numbers.push(client.phone_number);
-        });
-      }
-    }
-
-    // Send Bulk SMS
-    const sms_options = {
-      content,
-      phone_numbers,
-      confirmation_phone_number,
-      start_time: new Date(Date.now() + 30 * 1000),
-    };
-
-    // Start the cron job
-    if (phone_numbers.length > 0) {
-      bulk_sms(sms_options);
-    }
-
-    // Respond
-    res.status(200).json({
-      status: "SUCCESS",
-      message:
-        "Message sending has started. You will receive a confirmation SMS on the provided confirmation phone number when the sending process starts",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // Client age group
 export const clientAgeGroup: RequestHandler = async (req, res, next) => {
   try {
@@ -962,27 +869,6 @@ export const clientAgeGroup: RequestHandler = async (req, res, next) => {
       results: clients.length,
       data: {
         clients,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Agents phone numbers for SMS
-export const agentsPhoneNumbersSMS: RequestHandler = async (req, res, next) => {
-  try {
-    const agents = await Client.getAllAgents();
-
-    // Phone numbers
-    const phoneNumbers = agents.map((agent) => agent.phone_number);
-
-    // Respond
-    res.status(200).json({
-      status: "SUCCESS",
-      results: phoneNumbers.length,
-      data: {
-        phoneNumbers,
       },
     });
   } catch (error) {

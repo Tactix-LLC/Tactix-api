@@ -8,6 +8,7 @@ import compareOtp from "../../../utils/compare_otp";
 import generateToken from "../../../utils/generate_token";
 import configs from "../../../configs";
 import axios from "axios";
+import nodemailer from "nodemailer";
 
 export const sendOtp: RequestHandler = async (req, res, next) => {
   try {
@@ -21,8 +22,8 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     }
 
     // Check if there is a client
-    const client = await Client.getClienyByPhonenumber(data.phone_number);
-    if (client)
+    const clientEmail = await Client.getClienyByEmail(data.email);
+    if (clientEmail)
       return next(
         new AppError("You already have an account. Please login", 400)
       );
@@ -44,11 +45,13 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       return next(new AppError("Pin and Pin confirm should be similar", 401));
     }
 
-    // Check age
-    const currentYear = new Date(Date.now()).getFullYear();
-    const clientBirthYear = new Date(data.birth_date).getFullYear();
-    const age = currentYear - clientBirthYear;
-    if (age < 18) return next(new AppError("Under age", 403));
+    // Check age (only if birth_date is provided)
+    if (data.birth_date) {
+      const currentYear = new Date(Date.now()).getFullYear();
+      const clientBirthYear = new Date(data.birth_date).getFullYear();
+      const age = currentYear - clientBirthYear;
+      if (age < 18) return next(new AppError("Under age", 403));
+    }
 
     // Otp count
     let otp_count: number = 1;
@@ -60,7 +63,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     let created_at: Date = new Date(Date.now());
 
     // Get existing OTP
-    const prevOtp = await OTP.getOtp(data.phone_number);
+    const prevOtp = await OTP.getOtp(data.email);
     if (prevOtp) {
       // Set created at
       created_at = new Date(prevOtp.created_at);
@@ -96,7 +99,8 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       first_name: data.first_name,
       last_name: data.last_name,
       phone_number: data.phone_number,
-      birth_date: new Date(data.birth_date),
+      email: data.email,
+      birth_date: data.birth_date ? new Date(data.birth_date) : undefined,
       pin,
       pin_confirm,
       accept: data.accept,
@@ -108,27 +112,56 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       updated_at,
     });
 
-    // Check the env and send SMS
+    // Check the env and send Email
     if (configs.env === "development") {
+      // Send Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: data.email,
+        subject: "Your OTP Code",
+        text: `Your OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
         otp,
       });
+
     } else {
-      // Send SMS & Respond
-      const message = `Your OTP is ${otp}`;
-      await axios.get(
-        `https://api.afromessage.com/api/send?from=${configs.afro.identifier}&sender=${configs.afro.sender_name}&to=${data.phone_number}&message=${message}`,
-        {
-          headers: {
-            Authorization: `Bearer ${configs.afro.api_key}`,
-          },
-        }
-      );
+      // Send Email
+      const transporter = nodemailer.createTransport({
+        host: configs.email.host,
+        port: configs.email.port,
+        secure: configs.email.secure,
+        auth: {
+          user: configs.email.auth.user,
+          pass: configs.email.auth.pass,
+        },
+      });
+
+      const mailOptions = {
+        from: configs.email.auth.user,
+        to: data.email,
+        subject: "Your OTP Code",
+        text: `Your OTP is ${otp}`,
+      };
+
+      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
-        message: "A verification code is sent to your phone via SMS.",
+        message: "A verification code is sent to your email.",
       });
     }
   } catch (error) {
@@ -140,14 +173,14 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
 export const verifyOtp: RequestHandler = async (req, res, next) => {
   try {
     // Get body
-    const { otp, phone_number } = <OTPRequest.IVerifyOtp>req.value;
+    const { otp, email } = <OTPRequest.IVerifyOtp>req.value;
 
     // Get the otp
-    const prevOtp = await OTP.getOtp(phone_number);
+    const prevOtp = await OTP.getOtp(email);
     if (!prevOtp)
       return next(
         new AppError(
-          "There is no OTP created with the specified phone number.",
+          "There is no OTP created with the specified email.",
           400
         )
       );
@@ -168,7 +201,8 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
       last_name:
         prevOtp.last_name[0].toUpperCase() + prevOtp.last_name.slice(1),
       phone_number: prevOtp.phone_number,
-      birth_date: new Date(prevOtp.birth_date),
+      email: prevOtp.email,
+      birth_date: prevOtp.birth_date ? new Date(prevOtp.birth_date) : undefined,
       pin: prevOtp.pin,
       pin_confirm: prevOtp.pin_confirm,
       accept: Boolean(prevOtp.accept),
@@ -181,7 +215,7 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
     const token = generateToken({ id: client._id, user: "client" });
 
     // Delete the otp from Redis
-    await OTP.deleteOtp(phone_number);
+    await OTP.deleteOtp(email);
 
     // Respond
     res.status(200).json({

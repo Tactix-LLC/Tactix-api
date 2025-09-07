@@ -3,9 +3,8 @@ const router = Router();
 import protect from "../../utils/protect";
 import auth from "../../utils/auth";
 import validator from "../../utils/validator";
-import { validateCreateAPI, validateDeleteAllAPI } from "./validation";
+import { validateDeleteAllAPI } from "./validation";
 import {
-  joinGameWeek,
   deleteAllGameWeekTeam,
   deleteGameWeekTeam,
   getAllGameWeekTeams,
@@ -36,7 +35,6 @@ import {
 // Mount routes with their respective handler methods in controller
 router
   .route("/")
-  .post(protect, auth("Client"), validator(validateCreateAPI), joinGameWeek)
   .get(protect, auth("Super-admin", "Admin"), getAllGameWeekTeams)
   .delete(
     protect,

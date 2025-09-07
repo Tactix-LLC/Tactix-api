@@ -27,15 +27,15 @@ import {
   clientsJoiningGameweeks,
   agentsWorkRate,
   favoriteCoachStat,
-  sendBulkSms,
   clientAgeGroup,
-  agentsPhoneNumbersSMS,
   changeCommision,
   makeUsersAgent,
   getNonAgetUsers,
   updateGameweekPackage,
   buyPackageUsingCredit,
 } from "./controller";
+
+import { socialLogin } from "./social_login/controller";
 
 import { sendOtpValidation, verifyOtpValidation } from "./otp/validation";
 import {
@@ -51,11 +51,12 @@ import {
   deleteAllClientsValidation,
   changeClientStatusValidation,
   updatePrizeValidation,
-  sendBulkSmsValidation,
   changeClientCommisionValidation,
   refundPackageValidation,
   buyPackageUsingCreditValidation,
 } from "./validation";
+
+import socialLoginValidation from "./social_login/validation";
 import validator from "../../utils/validator";
 
 import protect from "../../utils/protect";
@@ -64,6 +65,7 @@ import auth from "../../utils/auth";
 router.post("/sendotp", validator(sendOtpValidation), sendOtp);
 router.post("/verifyotp", validator(verifyOtpValidation), verifyOtp);
 router.post("/login", validator(loginValidation), clientLogin);
+router.post("/social-login", socialLoginValidation, socialLogin);
 
 router.patch(
   "/profile",
@@ -89,13 +91,6 @@ router.post(
   "/verifypinresetotp",
   validator(verifyPinResetOtpValidation),
   verifyResetOtp
-);
-router.post(
-  "/sms",
-  protect,
-  auth("Super-admin"),
-  validator(sendBulkSmsValidation),
-  sendBulkSms
 );
 
 router.patch("/resetpin", validator(resetPinValidation), resetPin);
@@ -151,13 +146,6 @@ router.get(
 );
 
 router.get("/age", protect, auth("Super-admin", "Admin"), clientAgeGroup);
-
-router.get(
-  "/agentsphonenumbers",
-  protect,
-  auth("Super-admin", "Admin"),
-  agentsPhoneNumbersSMS
-);
 
 router.patch(
   "/creditpackage",

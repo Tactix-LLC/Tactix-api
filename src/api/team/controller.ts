@@ -19,7 +19,6 @@ import GameWeekTeam from "../game_week_team/dal";
 import TransferHistory from "../transfer_history/dal";
 import player_stats from "./utils/player_stats";
 import calculate_fantasy_points from "./utils/calculate_fantasy_points";
-import signupMsg from "./utils/signup_msg";
 import joinedActiveGW from "./utils/joined_active_gw";
 
 // Create team
@@ -65,9 +64,6 @@ export const createTeam: RequestHandler = async (req, res, next) => {
 
     // Update client's has_team field and give 45 birr credit
     await Client.updateHasTeam(loggedInUser.id, true);
-
-    // Notify user they got 45 birr bonus
-    await signupMsg(user);
 
     // Response
     res.status(201).json({
@@ -748,7 +744,7 @@ export const refereshPoints: RequestHandler = async (req, res, next) => {
     //   playerStats.push(...playerStat);
     // }
     const playerStats = await player_stats(matchIds);
-    const players = calculate_fantasy_points(client.players, playerStats);
+    const players = await calculate_fantasy_points(client.players, playerStats);
 
     // Respond
     res.status(200).json({

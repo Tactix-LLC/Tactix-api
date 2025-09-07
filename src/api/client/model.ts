@@ -20,14 +20,26 @@ const clientSchema = new Schema(
     },
     phone_number: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: false,
       maxlength: [20, "Phone number can not exceed 20 characters"],
       minlength: [10, "Phone number can not be less than 10 characters"],
       unique: true,
+      sparse: true, // Allows multiple null values for unique field
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      maxlength: [100, "Email cannot exceed 100 characters"],
+      minlength: [5, "Email cannot be less than 5 characters"],
+      unique: true,
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Please provide a valid email address",
+      ],
     },
     birth_date: {
       type: Date,
-      required: [true, "Birth date is required"],
+      required: false,
     },
     role: {
       type: String,
@@ -117,6 +129,23 @@ const clientSchema = new Schema(
       default: 0,
       min: [0, "Number of gameweek package can not be less than 0"],
     },
+    social_provider: {
+      type: String,
+      enum: ["google", "facebook", "apple"],
+      required: false,
+    },
+    social_id: {
+      type: String,
+      required: false,
+    },
+    profile_picture: {
+      type: String,
+      required: false,
+    },
+    groups: [{
+      type: mongoose.Types.ObjectId,
+      ref: "Group",
+    }],
   },
   {
     writeConcern: {

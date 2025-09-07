@@ -13,7 +13,7 @@ export default function checkTotalPlayersPrice(
 
     if (totalPlayersPrice > 100) {
       throw new AppError(
-        "You have only 100 loche coins. Please buy players within your budget",
+        "You have only 100 tactix coins. Please buy players within your budget",
         400
       );
     }

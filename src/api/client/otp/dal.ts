@@ -5,9 +5,9 @@ import IOtpDoc from "./dto";
 // OTP Service
 export default class OTP {
   // Get an otp
-  static async getOtp(phone_number: string): Promise<IOtpDoc | null> {
+  static async getOtp(email: string): Promise<IOtpDoc | null> {
     try {
-      const otp = await init.redis_client.hGetAll(`otp_${phone_number}`);
+      const otp = await init.redis_client.hGetAll(`otp_${email}`);
       if (Object.keys(otp).length !== 0) {
         return otp as unknown as IOtpDoc;
       }
@@ -27,18 +27,20 @@ export default class OTP {
     }
   ): Promise<RedisCommandRawReply> {
     try {
-      // const otp = await init.redis_client.hSet(data.phone_number, data as any);
+      // const otp = await init.redis_client.hSet(data.email, data as any);
       const otp = await init.redis_client.sendCommand([
         "HSET",
-        `otp_${data.phone_number}`,
+        `otp_${data.email}`,
         "first_name",
         data.first_name,
         "last_name",
         data.last_name,
         "phone_number",
-        data.phone_number,
+        data.phone_number || "",
+        "email",
+        data.email,
         "birth_date",
-        `${data.birth_date}`,
+        data.birth_date ? `${data.birth_date}` : "",
         "pin",
         data.pin,
         "pin_confirm",
@@ -66,9 +68,9 @@ export default class OTP {
   }
 
   // Delete from Redis
-  static async deleteOtp(phone_number: string) {
+  static async deleteOtp(email: string) {
     try {
-      await init.redis_client.del(`otp_${phone_number}`);
+      await init.redis_client.del(`otp_${email}`);
     } catch (error) {
       throw error;
     }

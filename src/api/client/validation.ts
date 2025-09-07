@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 export const loginValidation = Joi.object({
-  phone_number: Joi.string().required(),
+  email: Joi.string().required(),
   pin: Joi.string().required(),
 });
 
@@ -19,7 +19,7 @@ export const updatePinValidation = Joi.object({
 });
 
 export const forgotPinValidation = Joi.object({
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
 });
 
 export const changeClientStatusValidation = Joi.object({
@@ -33,13 +33,13 @@ export const changeClientCommisionValidation = Joi.object({
 
 export const verifyPinResetOtpValidation = Joi.object({
   otp: Joi.string().required(),
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
 });
 
 export const resetPinValidation = Joi.object({
   pin: Joi.string().required(),
   pin_confirm: Joi.string().required(),
-  phone_number: Joi.string().required(),
+  email: Joi.string().email().required(),
 });
 
 export const updateProfilePictureValidation = Joi.object({
@@ -72,14 +72,6 @@ export const updatePrizeValidation = Joi.object({
   }),
   earned_prize: Joi.number(),
   prize_balance: Joi.number(),
-});
-
-// Send Bulk SMS
-export const sendBulkSmsValidation = Joi.object({
-  content: Joi.string().required(),
-  sms_type: Joi.string().required(),
-  game_week: Joi.string().optional(),
-  confirmation_phone_number: Joi.string().required(),
 });
 
 // Buy Package using Credit

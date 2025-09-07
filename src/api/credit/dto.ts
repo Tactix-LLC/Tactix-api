@@ -32,5 +32,9 @@ declare global {
       from: string;
       to: string;
     }
+    interface IStripePayment {
+      amount: number;
+      currency: string;
+    }
   }
 }

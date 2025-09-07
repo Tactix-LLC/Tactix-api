@@ -3,8 +3,9 @@ export {};
 export default interface IOtpDoc {
   first_name: string;
   last_name: string;
-  phone_number: string;
-  birth_date: string;
+  phone_number?: string;
+  email: string;
+  birth_date?: string;
   pin: string;
   pin_confirm: string;
   accept: string;
@@ -21,8 +22,9 @@ declare global {
     interface ISendOtp {
       first_name: string;
       last_name: string;
-      phone_number: string;
-      birth_date: Date;
+      phone_number?: string;
+      email: string;
+      birth_date?: Date;
       pin: string;
       pin_confirm: string;
       accept: boolean;
@@ -35,7 +37,7 @@ declare global {
       updated_at: Date;
     }
     interface IVerifyOtp {
-      phone_number: string;
+      email: string;
       otp: string;
     }
   }

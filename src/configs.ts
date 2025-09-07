@@ -45,13 +45,21 @@ export default {
     url: process.env.ENTITY_SPORT_URL,
     token: process.env.ENTITY_SPORT_TOKEN,
   },
-  afro: {
-    sender_name: process.env.AFRO_SENDER_NAME,
-    api_key: process.env.AFRO_API_KEY,
-    identifier: process.env.AFRO_IDENTIFIER,
-  },
   chapa: {
     secret_key: chapa_key,
+  },
+  email: {
+    host: "smtp.gmail.com", // Replace with your SMTP host
+    port: 465, // SMTP port
+    secure: true, // Use true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER, // Your email address
+      pass: process.env.SMTP_PASS,    // Your email password
+    },
+  },
+  google: {
+    client_id: "545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com", // Android
+    ios_client_id: "545588730676-cubab3ceuge681a5s1stjl30g8fd1lbt.apps.googleusercontent.com", // iOS
   },
   api_url,
 };

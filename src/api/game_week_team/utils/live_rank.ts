@@ -110,12 +110,12 @@ export default (data: {
           );
           gameWeekTeams.forEach(async (gameWeekTeam) => {
             // Calculate player points
-            const playersPoints = calculate_fantasy_points(
+            const playersPoints = await calculate_fantasy_points(
               gameWeekTeam.players,
               playerStat
             );
 
-            const { totalPoint, players } = calculate_points(playersPoints);
+            const { totalPoint, players } = await calculate_points(playersPoints);
 
             // Update the team with the latest points
             const updatedGameWeekTeam =

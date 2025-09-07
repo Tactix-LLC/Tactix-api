@@ -47,3 +47,9 @@ export const transferCreditValidation = Joi.object({
   to: Joi.string().required(),
   amount: Joi.number().min(1).required(),
 });
+
+// Withdrawal validation
+export const stripeSessionValidation = Joi.object({
+  amount: Joi.number().min(1).required(),
+  currency: Joi.string(),
+});

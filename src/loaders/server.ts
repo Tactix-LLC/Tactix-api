@@ -52,6 +52,7 @@ import seasonRouter from "../api/season/router";
 import compRouter from "../api/competition/router";
 import noteRouter from "../api/notes/router";
 import scoutRouter from "../api/scout/router";
+import favoriteRouter from "../api/favorite/router";
 import perkRouter from "../api/perks/router";
 import transctionRouter from "../api/transaction/router";
 import gameWeekRouter from "../api/game_week/router";
@@ -73,6 +74,8 @@ import pollRouter from "../api/poll/router";
 import adCompanyRouter from "../api/ad_comp/router";
 import adPackageRouter from "../api/ad_packages/router";
 import packagesRouter from "../api/packages/router";
+import systemSettingsRouter from "../api/system_settings/router";
+import groupsRouter from "../api/groups/router";
 
 // Use Routers
 app.use("/api/v1/admins", adminRouter);
@@ -88,6 +91,7 @@ app.use("/api/v1/season", seasonRouter);
 app.use("/api/v1/competitions", compRouter);
 app.use("/api/v1/notes", noteRouter);
 app.use("/api/v1/scout", scoutRouter);
+app.use("/api/v1/favorite", favoriteRouter);
 app.use("/api/v1/perk", perkRouter);
 app.use("/api/v1/transaction", transctionRouter);
 app.use("/api/v1/gameweek", gameWeekRouter);
@@ -109,6 +113,8 @@ app.use("/api/v1/poll", pollRouter);
 app.use("/api/v1/adcompany", adCompanyRouter);
 app.use("/api/v1/adpackages", adPackageRouter);
 app.use("/api/v1/packages", packagesRouter);
+app.use("/api/v1/system-settings", systemSettingsRouter);
+app.use("/api/v1/groups", groupsRouter);
 
 //Healthcheck endpoint
 app.get("/healthcheck", (req, res, next) => {

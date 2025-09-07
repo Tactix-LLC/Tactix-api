@@ -16,6 +16,9 @@ import moveCommissionToCredit from "./withdrawal_utils/commssion_to_credit";
 import autJoin from "./credit_utils/auto_join/auto_join";
 import CompetitionDAL from "../competition/dal";
 
+const Stripe = require('stripe');
+const stripe = Stripe('sk_test_51Qli3kHgCTFKnrtVaMurgmS6mm4Sr2PBkZJ3iWRU4jAktdR83lJlbwBloTIZyKtQCRKOyk0Gcblb8yqDI0WsDUX600IU5UQ7dW');
+
 export const pay: RequestHandler = async (req, res, next) => {
   try {
     // Get "cid" of premier league
@@ -43,11 +46,16 @@ export const pay: RequestHandler = async (req, res, next) => {
 
     // Generate Transaction reference number
     const tx_ref = transactionGenerator(user.first_name, user.last_name);
-    let phoneNumberForCredit: string = `0${user.phone_number.slice(4)}`;
+    let phoneNumberForCredit: string = phone_number || "";
 
-    // If a user provides phone number, use the provided phone number
-    if (phone_number) {
-      phoneNumberForCredit = phone_number;
+    // If user has a phone number in profile and no phone_number provided, use profile phone
+    if (!phone_number && user.phone_number) {
+      phoneNumberForCredit = `0${user.phone_number.slice(4)}`;
+    }
+
+    // If no phone number available, return error
+    if (!phoneNumberForCredit) {
+      return next(new AppError("Phone number is required for credit transactions", 400));
     }
 
     // Return URL
@@ -66,7 +74,7 @@ export const pay: RequestHandler = async (req, res, next) => {
           last_name: user.last_name,
           phone_number: phoneNumberForCredit,
           tx_ref: tx_ref,
-          "customization[title]": "Loche",
+          "customization[title]": "Tactix",
           "customization[logo]": "",
           return_url,
         },
@@ -455,20 +463,20 @@ export const transferCreditForAdmin: RequestHandler = async (
     }
 
     // Get clients
-    const clientFrom = await Client.getClientByPhoneNumber(from);
+    const clientFrom = await Client.getClientByEmail(from);
     if (!clientFrom)
       return next(
         new AppError(
-          "There is no client with the specified phone number to send the credit",
+          "There is no client with the specified email to send the credit",
           404
         )
       );
 
-    const clientTo = await Client.getClientByPhoneNumber(to);
+    const clientTo = await Client.getClientByEmail(to);
     if (!clientTo)
       return next(
         new AppError(
-          "There is no client with the specified phone number to receive the credit",
+          "There is no client with the specified email to receive the credit",
           404
         )
       );
@@ -504,26 +512,26 @@ export const transferCredit: RequestHandler = async (req, res, next) => {
     // Get clients
     const from = <IClientDoc>req.user;
     // Check if from and to are similar
-    if (from.phone_number === to) {
+    if (from.email === to) {
       return next(
         new AppError("You can not transfer to your own account", 400)
       );
     }
 
-    const clientFrom = await Client.getClientByPhoneNumber(from.phone_number);
+    const clientFrom = await Client.getClientByEmail(from.email);
     if (!clientFrom)
       return next(
         new AppError(
-          "There is no client with the specified phone number to send the credit",
+          "There is no client with the specified email to send the credit",
           404
         )
       );
 
-    const clientTo = await Client.getClientByPhoneNumber(to);
+    const clientTo = await Client.getClientByEmail(to);
     if (!clientTo)
       return next(
         new AppError(
-          "There is no client with the specified phone number to receive the credit",
+          "There is no client with the specified email to receive the credit",
           404
         )
       );
@@ -547,5 +555,46 @@ export const transferCredit: RequestHandler = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const stripepayment: RequestHandler = async (req, res, next) => {
+  try {
+    // Get body
+    const { amount, currency } = <CreditRequest.IStripePayment>req.value;
+
+    // Create a Checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'], // Accept card payments
+      line_items: [
+        {
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: 'WinSquad', // Replace with your product/service name
+            },
+            unit_amount: amount, // Amount in cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment', // One-time payment
+      success_url: `${configs.api_url}/success`, // Redirect URL on success
+      cancel_url: `${configs.api_url}/cancel`,   // Redirect URL on cancel
+    });
+
+    res.status(200).json({
+      status: "SUCCESS",
+      checkout_url: session.url,
+    });
+  } catch (error) {
+    let message = "Unable to generate checkout URL";
+    if (configs.env === "development") {
+      message = String(error);
+    }
+    res.status(400).json({
+      status: "FAILED",
+      message,
+    });
   }
 };
