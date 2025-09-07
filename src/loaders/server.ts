@@ -13,7 +13,7 @@ import compression from "compression";
 
 // Third party middlewares
 // Security
-app.use(compression());
+app.use(compression() as any);
 app.use(cors({ origin: "*", credentials: false }));
 app.use(helmet());
 app.use(mongoSanitize());
