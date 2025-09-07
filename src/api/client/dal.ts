@@ -260,6 +260,38 @@ export default class Client {
     }
   }
 
+  // Search users for group invitations
+  static async searchUsers(query: string, currentUserId: string): Promise<IClientDoc[]> {
+    try {
+      const users = await ClientModel.find({
+        _id: { $ne: currentUserId }, // Exclude current user
+        $or: [
+          { first_name: { $regex: query, $options: 'i' } },
+          { last_name: { $regex: query, $options: 'i' } },
+          { email: { $regex: query, $options: 'i' } },
+        ],
+      })
+      .select('first_name last_name email profile_picture')
+      .limit(20); // Limit results for performance
+      
+      return users;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Add group to multiple clients
+  static async addGroupToClients(clientIds: string[], groupId: string): Promise<void> {
+    try {
+      await ClientModel.updateMany(
+        { _id: { $in: clientIds } },
+        { $addToSet: { groups: groupId } }
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Update profile picture
   static async updateProfilePicture(
     id: string,

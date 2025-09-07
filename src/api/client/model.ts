@@ -142,6 +142,10 @@ const clientSchema = new Schema(
       type: String,
       required: false,
     },
+    groups: [{
+      type: mongoose.Types.ObjectId,
+      ref: "Group",
+    }],
   },
   {
     writeConcern: {

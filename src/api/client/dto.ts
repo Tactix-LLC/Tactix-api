@@ -32,6 +32,7 @@ export default interface IClientDoc extends Document {
   social_provider?: string;
   social_id?: string;
   profile_picture?: string;
+  groups?: string[];
   createdAt: Date;
   updatedAt: Date;
   comparePin: (candidatePin: string, pin: string) => boolean;

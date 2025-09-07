@@ -10,6 +10,7 @@ export default interface IGameWeekTeamDoc extends Document {
   players: IPlayersData[];
   is_done: boolean;
   total_fantasy_point: number;
+  groups?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
