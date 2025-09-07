@@ -20,7 +20,7 @@ const csvCreator = () => {
 
   phoneNumberData.on("end", () => {
     let lastIndex = 1000;
-    let data = [];
+    let data: any[] = [];
     for (let i = 1; i <= arrPhoneNumbers.length; i++) {
       // First index
       let firstIndex = i;

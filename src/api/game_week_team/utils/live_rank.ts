@@ -22,7 +22,7 @@ export default (data: {
         const matchIds = data.gameWeek.match_ids;
 
         // Generate URLs
-        const urls = [];
+        const urls: string[] = [];
         for (let i = 0; i < matchIds.length; i++) {
           urls.push(
             `${configs.entity_sport.url}/matches/${matchIds[i]}/newfantasy?token=${configs.entity_sport.token}`

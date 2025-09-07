@@ -10,7 +10,7 @@ export default async (matchIds: string[]) => {
     const playerStats: Player[] = [];
 
     // Generate URLs
-    const urls = [];
+    const urls: string[] = [];
     for (let i = 0; i < matchIds.length; i++) {
       urls.push(
         `${configs.entity_sport.url}/matches/${matchIds[i]}/newfantasy?token=${configs.entity_sport.token}`
