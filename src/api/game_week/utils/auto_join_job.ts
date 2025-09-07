@@ -12,6 +12,12 @@ import IGameWeekDoc from '../dto';
  */
 export class AutoJoinJobManager {
   private static jobs: Map<string, schedule.Job> = new Map();
+  private static completedJobs: Map<string, { 
+    gameWeekId: string; 
+    executedAt: Date; 
+    results: { success: number; failed: number; errors: string[] };
+    gameWeek: string;
+  }> = new Map();
 
   /**
    * Schedule auto-join job for a game week
@@ -146,6 +152,14 @@ export class AutoJoinJobManager {
 
       console.log(`🎯 Auto-join completed for game week ${gameWeek.game_week}: ${results.success} success, ${results.failed} failed`);
       
+      // Record completed job before cancelling
+      this.completedJobs.set(gameWeekId, {
+        gameWeekId,
+        executedAt: new Date(),
+        results,
+        gameWeek: gameWeek.game_week
+      });
+      
       // Cancel the job after execution
       this.cancelAutoJoinJob(gameWeekId);
 
@@ -160,13 +174,41 @@ export class AutoJoinJobManager {
   /**
    * Get all scheduled auto-join jobs
    */
-  static getScheduledJobs(): Array<{ gameWeekId: string; nextInvocation: Date | null }> {
-    const jobs: Array<{ gameWeekId: string; nextInvocation: Date | null }> = [];
+  static getScheduledJobs(): Array<{ 
+    gameWeekId: string; 
+    nextInvocation: Date | null;
+    status: 'scheduled' | 'completed';
+    executedAt?: Date;
+    results?: { success: number; failed: number; errors: string[] };
+    gameWeek?: string;
+  }> {
+    const jobs: Array<{ 
+      gameWeekId: string; 
+      nextInvocation: Date | null;
+      status: 'scheduled' | 'completed';
+      executedAt?: Date;
+      results?: { success: number; failed: number; errors: string[] };
+      gameWeek?: string;
+    }> = [];
     
+    // Add scheduled jobs
     for (const [gameWeekId, job] of this.jobs.entries()) {
       jobs.push({
         gameWeekId,
-        nextInvocation: job.nextInvocation()
+        nextInvocation: job.nextInvocation(),
+        status: 'scheduled'
+      });
+    }
+
+    // Add completed jobs
+    for (const [gameWeekId, completedJob] of this.completedJobs.entries()) {
+      jobs.push({
+        gameWeekId,
+        nextInvocation: null,
+        status: 'completed',
+        executedAt: completedJob.executedAt,
+        results: completedJob.results,
+        gameWeek: completedJob.gameWeek
       });
     }
 
@@ -185,10 +227,33 @@ export class AutoJoinJobManager {
   }
 
   /**
+   * Clear old completed jobs (older than 7 days)
+   */
+  static clearOldCompletedJobs(): void {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    let clearedCount = 0;
+    for (const [gameWeekId, completedJob] of this.completedJobs.entries()) {
+      if (completedJob.executedAt < sevenDaysAgo) {
+        this.completedJobs.delete(gameWeekId);
+        clearedCount++;
+      }
+    }
+    
+    if (clearedCount > 0) {
+      console.log(`🧹 Cleared ${clearedCount} old completed auto-join jobs`);
+    }
+  }
+
+  /**
    * Reschedule all auto-join jobs (useful when settings change)
    */
   static async rescheduleAllJobs(): Promise<void> {
     console.log(`🔄 Rescheduling all auto-join jobs...`);
+    
+    // Clear old completed jobs first
+    this.clearOldCompletedJobs();
     
     // Cancel all existing jobs
     this.cancelAllJobs();
