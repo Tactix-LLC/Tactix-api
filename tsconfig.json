@@ -10,9 +10,6 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
 
-    /* Enable Node.js built-ins */
-    "types": ["node"],
-
     /* Strictness */
     "strict": true,
     "noImplicitAny": false,
