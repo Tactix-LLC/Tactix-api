@@ -97,7 +97,7 @@ export default class TeamDAL {
     project?: boolean
   ): Promise<ITeamDoc | null> {
     try {
-      let team = null;
+      let team: any = null;
       if (project) {
         team = await Team.findById(id).select(
           "total_fantasy_point favorite_coach favorite_tactic team_name budget id competition"
