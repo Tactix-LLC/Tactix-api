@@ -240,7 +240,13 @@ export default class Group {
   }
 
   // Get group leaderboard (for a specific gameweek)
-  static async getGroupLeaderboard(groupId: string, gameWeekId?: string, month?: string): Promise<any[]> {
+  static async getGroupLeaderboard(
+    groupId: string, 
+    gameWeekId?: string, 
+    month?: string, 
+    page: number = 1, 
+    limit: number = 20
+  ): Promise<{ leaderboard: any[], hasMore: boolean, total: number }> {
     try {
       const group = await Groups.findById(groupId);
       if (!group) {
@@ -257,7 +263,7 @@ export default class Group {
         const validMemberIds = memberIds.filter((id: any) => mongoose.Types.ObjectId.isValid(id));
         
         if (validMemberIds.length === 0) {
-          return [];
+          return { leaderboard: [], hasMore: false, total: 0 };
         }
         
         // Get all gameweek teams for this gameweek that belong to group members
@@ -350,6 +356,7 @@ export default class Group {
                 id: gameweekTeam.client_id.id,
                 first_name: gameweekTeam.client_id.first_name,
                 last_name: gameweekTeam.client_id.last_name,
+                full_name: gameweekTeam.client_id.full_name || `${gameweekTeam.client_id.first_name} ${gameweekTeam.client_id.last_name}`,
                 profile_picture: gameweekTeam.client_id.profile_picture || "",
               },
               total_fantasy_point: gameweekTeam.total_fantasy_point || 0,
@@ -363,6 +370,7 @@ export default class Group {
                 id: member._id,
                 first_name: member.first_name,
                 last_name: member.last_name,
+                full_name: `${member.first_name} ${member.last_name}`,
                 profile_picture: member.profile_picture || "",
               },
               total_fantasy_point: 0,
@@ -384,7 +392,16 @@ export default class Group {
           item.rank = index + 1;
         });
 
-        return leaderboard;
+        // Apply pagination
+        const skip = (page - 1) * limit;
+        const paginatedLeaderboard = leaderboard.slice(skip, skip + limit);
+        const hasMore = skip + limit < leaderboard.length;
+
+        return {
+          leaderboard: paginatedLeaderboard,
+          hasMore,
+          total: leaderboard.length
+        };
       } else if (month) {
         // For monthly leaderboard - get real points from GameWeekTeam
         const GameWeekDAL = require("../game_week/dal").default;
@@ -393,14 +410,14 @@ export default class Group {
         const validMemberIds = memberIds.filter((id: any) => mongoose.Types.ObjectId.isValid(id));
         
         if (validMemberIds.length === 0) {
-          return [];
+          return { leaderboard: [], hasMore: false, total: 0 };
         }
         
         // Get all game_weeks in the selected month
         const gameWeeksInMonth = await GameWeekDAL.getGameWeeksInMonth(month);
         
         if (gameWeeksInMonth.length === 0) {
-          return [];
+          return { leaderboard: [], hasMore: false, total: 0 };
         }
         
         // Get monthly leaderboard for group members
@@ -474,7 +491,7 @@ export default class Group {
 
         // For monthly leaderboard - return structure similar to main monthly leaderboard
         // First, get all group members
-        const allGroupMembers = await Groups.findById(groupId).populate('members', 'first_name last_name');
+        const allGroupMembers = await Groups.findById(groupId).populate('members', 'first_name last_name profile_picture');
         if (!allGroupMembers) {
           throw new AppError("Group not found", 404);
         }
@@ -485,7 +502,7 @@ export default class Group {
           monthlyTeamMap.set(team._id.toString(), team);
         });
 
-        // Create leaderboard with all group members
+        // Create leaderboard with all group members (normalize to normal leaderboard schema)
         const leaderboard = allGroupMembers.members.map((member: any, index: number) => {
           const monthlyTeam = monthlyTeamMap.get(member._id.toString());
           if (monthlyTeam) {
@@ -493,8 +510,11 @@ export default class Group {
             return {
               _id: monthlyTeam._id,
               client_id: {
+                id: monthlyTeam.client_id.id,
                 first_name: monthlyTeam.client_id.first_name,
                 last_name: monthlyTeam.client_id.last_name,
+                full_name: `${monthlyTeam.client_id.first_name} ${monthlyTeam.client_id.last_name}`,
+                profile_picture: monthlyTeam.client_id.profile_picture || "",
               },
               total_fantasy_point: monthlyTeam.total_fantasy_point || 0,
               rank: monthlyTeam.rank,
@@ -504,8 +524,11 @@ export default class Group {
             return {
               _id: member._id,
               client_id: {
+                id: member._id,
                 first_name: member.first_name,
                 last_name: member.last_name,
+                full_name: `${member.first_name} ${member.last_name}`,
+                profile_picture: member.profile_picture || "",
               },
               total_fantasy_point: 0,
               rank: monthlyLeaderboard.length + index + 1, // Rank after those with points
@@ -526,7 +549,16 @@ export default class Group {
           item.rank = index + 1;
         });
 
-        return leaderboard;
+        // Apply pagination
+        const skip = (page - 1) * limit;
+        const paginatedLeaderboard = leaderboard.slice(skip, skip + limit);
+        const hasMore = skip + limit < leaderboard.length;
+
+        return {
+          leaderboard: paginatedLeaderboard,
+          hasMore,
+          total: leaderboard.length
+        };
       } else {
         // For yearly - calculate total points for all gameweeks in current year
         const currentYear = new Date().getFullYear();
@@ -547,7 +579,7 @@ export default class Group {
               {
                 $match: {
                   client_id: new mongoose.Types.ObjectId(member._id),
-                  created_at: {
+                  createdAt: {
                     $gte: startOfYear,
                     $lte: endOfYear
                   }
@@ -567,22 +599,25 @@ export default class Group {
 
             return {
               _id: member._id,
-              name: `${member.first_name} ${member.last_name}`,
-              email: member.email || "",
-              profile_picture: member.profile_picture || "",
-              total_points: totalPoints,
+              client_id: {
+                id: member._id,
+                first_name: member.first_name,
+                last_name: member.last_name,
+                full_name: `${member.first_name} ${member.last_name}`,
+                profile_picture: member.profile_picture || "",
+              },
+              total_fantasy_point: totalPoints,
               total_games: totalGames,
-              team_name: "Team", // Could be enhanced to get actual team name
             };
           })
         );
 
         // Sort by total points (descending) and assign ranks
         yearlyLeaderboard.sort((a: any, b: any) => {
-          if (b.total_points !== a.total_points) {
-            return b.total_points - a.total_points;
+          if (b.total_fantasy_point !== a.total_fantasy_point) {
+            return b.total_fantasy_point - a.total_fantasy_point;
           }
-          return a.name.localeCompare(b.name); // Alphabetical tiebreaker
+          return a.client_id.full_name.localeCompare(b.client_id.full_name); // Alphabetical tiebreaker
         });
 
         // Assign ranks
@@ -590,8 +625,61 @@ export default class Group {
           member.rank = index + 1;
         });
 
-        return yearlyLeaderboard;
+        // Apply pagination
+        const skip = (page - 1) * limit;
+        const paginatedLeaderboard = yearlyLeaderboard.slice(skip, skip + limit);
+        const hasMore = skip + limit < yearlyLeaderboard.length;
+
+        return {
+          leaderboard: paginatedLeaderboard,
+          hasMore,
+          total: yearlyLeaderboard.length
+        };
       }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get user's rank in group
+  static async getUserRankInGroup(
+    groupId: string, 
+    userId: string, 
+    gameWeekId?: string, 
+    month?: string
+  ): Promise<any | null> {
+    try {
+      if (!userId) return null;
+
+      const group = await Groups.findById(groupId);
+      if (!group) {
+        throw new AppError("Group not found", 404);
+      }
+
+      // Check if user is a member of the group
+      const isMember = group.members.some((member: any) => member.toString() === userId);
+      if (!isMember) {
+        return null;
+      }
+
+      // Get the full leaderboard to find user's rank
+      const leaderboardData = await Group.getGroupLeaderboard(groupId, gameWeekId, month, 1, 1000);
+      
+      // Find user in the leaderboard
+      const userEntry = leaderboardData.leaderboard.find((entry: any) => {
+        if (gameWeekId) {
+          // Weekly - check client_id.id
+          return entry.client_id?.id?.toString() === userId;
+        } else if (month) {
+          // Monthly - check client_id.id (normalized schema)
+          return entry.client_id?.id?.toString() === userId;
+        } else {
+          // Yearly - check client_id.id (normalized schema)
+          return entry.client_id?.id?.toString() === userId;
+        }
+      });
+
+      return userEntry || null;
     } catch (error) {
       throw error;
     }
