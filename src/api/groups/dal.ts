@@ -24,8 +24,8 @@ export default class Group {
   static async getGroupById(id: string): Promise<IGroupDoc | null> {
     try {
       const group = await Groups.findById(id)
-        .populate('owner', 'first_name last_name email')
-        .populate('members', 'first_name last_name email')
+        .populate('owner', 'first_name last_name email full_name')
+        .populate('members', 'first_name last_name email full_name profile_picture')
         .populate('competition', 'competition_name');
       return group;
     } catch (error) {
@@ -719,7 +719,16 @@ export default class Group {
       // Add group to each new member's groups array
       await Client.addGroupToClients(newMembers, groupId);
 
-      return group;
+      // Return the group with populated members to include full user details
+      const updatedGroup = await Groups.findById(groupId)
+        .populate('owner', 'first_name last_name email full_name')
+        .populate('members', 'first_name last_name email full_name profile_picture');
+      
+      if (!updatedGroup) {
+        throw new AppError("Group not found after update", 404);
+      }
+      
+      return updatedGroup;
     } catch (error) {
       throw error;
     }

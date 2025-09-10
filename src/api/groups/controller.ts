@@ -166,7 +166,7 @@ export const removeMember: RequestHandler = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    const { member_id } = req.value as GroupRequest.IRemoveMember;
+    const { member_id } = req.body as GroupRequest.IRemoveMember;
     const group = await Group.removeMember(id, member_id, userId);
     
     res.status(200).json({
@@ -191,7 +191,9 @@ export const updateGroup: RequestHandler = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    const group = await Group.updateGroup(id, req.value as GroupRequest.IUpdateGroup, userId);
+    // Use req.body directly since we're not using Joi validation for this endpoint
+    const updateData = req.body as GroupRequest.IUpdateGroup;
+    const group = await Group.updateGroup(id, updateData, userId);
     
     res.status(200).json({
       status: "SUCCESS",
