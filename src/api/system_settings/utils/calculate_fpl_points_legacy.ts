@@ -119,8 +119,10 @@ export default async (
       if (stat.minutesplayed >= 60 && stat.cleansheet === 1) {
         switch (stat.role) {
           case "Goalkeeper":
-          case "Defender":
             fantasy_point += pointSystem.goalkeeper_clean_sheet;
+            break;
+          case "Defender":
+            fantasy_point += pointSystem.defender_clean_sheet;
             break;
           case "Midfielder":
             fantasy_point += pointSystem.midfielder_clean_sheet;
@@ -137,20 +139,20 @@ export default async (
       }
 
       // Defensive contributions (NEW for 2025/26)
-      let defensiveContributions = (stat.tacklesuccessful || 0) + (stat.interceptionwon || 0) + (stat.clearance || 0);
+      let totalDefensiveContributions = (stat.tacklesuccessful || 0) + (stat.interceptionwon || 0) + (stat.clearance || 0);
       switch (stat.role) {
         case "Defender":
-          if (defensiveContributions >= pointSystem.defender_defensive_contributions.threshold) {
+          if (totalDefensiveContributions >= pointSystem.defender_defensive_contributions.threshold) {
             fantasy_point += pointSystem.defender_defensive_contributions.points;
           }
           break;
         case "Midfielder":
-          if (defensiveContributions >= pointSystem.midfielder_defensive_contributions.threshold) {
+          if (totalDefensiveContributions >= pointSystem.midfielder_defensive_contributions.threshold) {
             fantasy_point += pointSystem.midfielder_defensive_contributions.points;
           }
           break;
         case "Forward":
-          if (defensiveContributions >= pointSystem.forward_defensive_contributions.threshold) {
+          if (totalDefensiveContributions >= pointSystem.forward_defensive_contributions.threshold) {
             fantasy_point += pointSystem.forward_defensive_contributions.points;
           }
           break;
@@ -175,8 +177,115 @@ export default async (
       player.fantasy_point = fantasy_point;
       player.final_fantasy_point = fantasy_point;
 
-      // Minutes played
-      player.minutesplayed = stat.minutesplayed;
+      // Calculate individual point values for direct properties (these show points, not raw stats)
+      
+      // Playing time points
+      let playingTimePoints = 0;
+      if (stat.minutesplayed >= 60) {
+        playingTimePoints = pointSystem.playing_60_plus_minutes;
+      } else if (stat.minutesplayed > 0) {
+        playingTimePoints = pointSystem.playing_under_60_minutes;
+      }
+      player.minutesplayed = playingTimePoints;
+
+      // Goal points by position
+      let goalPoints = 0;
+      if (stat.goalscored > 0) {
+        switch (stat.role) {
+          case "Goalkeeper":
+            goalPoints = stat.goalscored * pointSystem.goalkeeper_goal;
+            break;
+          case "Defender":
+            goalPoints = stat.goalscored * pointSystem.defender_goal;
+            break;
+          case "Midfielder":
+            goalPoints = stat.goalscored * pointSystem.midfielder_goal;
+            break;
+          case "Forward":
+            goalPoints = stat.goalscored * pointSystem.forward_goal;
+            break;
+        }
+      }
+      player.goalscored = goalPoints;
+
+      // Assist points
+      player.assist = stat.assist * pointSystem.assist;
+
+      // Clean sheet points
+      let cleanSheetPoints = 0;
+      if (stat.minutesplayed >= 60 && stat.cleansheet === 1) {
+        switch (stat.role) {
+          case "Goalkeeper":
+            cleanSheetPoints = pointSystem.goalkeeper_clean_sheet;
+            break;
+          case "Defender":
+            cleanSheetPoints = pointSystem.defender_clean_sheet;
+            break;
+          case "Midfielder":
+            cleanSheetPoints = pointSystem.midfielder_clean_sheet;
+            break;
+        }
+      }
+      player.cleansheet = cleanSheetPoints;
+
+      // Goalkeeper specific points
+      let shotsSavedPoints = 0;
+      let penaltySavedPoints = 0;
+      if (stat.role === "Goalkeeper") {
+        shotsSavedPoints = Math.floor(stat.shotssaved / 3) * pointSystem.saves_per_3;
+        penaltySavedPoints = stat.penaltysaved * pointSystem.penalty_save;
+      }
+      player.shotssaved = shotsSavedPoints;
+      player.penaltysaved = penaltySavedPoints;
+
+      // Defensive contributions
+      let playerDefensiveContributions = (stat.tacklesuccessful || 0) + (stat.interceptionwon || 0) + (stat.clearance || 0);
+      let defensivePoints = 0;
+      switch (stat.role) {
+        case "Defender":
+          if (playerDefensiveContributions >= pointSystem.defender_defensive_contributions.threshold) {
+            defensivePoints = pointSystem.defender_defensive_contributions.points;
+          }
+          break;
+        case "Midfielder":
+          if (playerDefensiveContributions >= pointSystem.midfielder_defensive_contributions.threshold) {
+            defensivePoints = pointSystem.midfielder_defensive_contributions.points;
+          }
+          break;
+        case "Forward":
+          if (playerDefensiveContributions >= pointSystem.forward_defensive_contributions.threshold) {
+            defensivePoints = pointSystem.forward_defensive_contributions.points;
+          }
+          break;
+      }
+      player.tacklesuccessful = defensivePoints;
+
+      // Penalty miss points
+      player.penaltymissed = stat.penaltymissed * pointSystem.penalty_miss;
+
+      // Card points
+      player.yellowcard = stat.yellowcard * pointSystem.yellow_card;
+      player.redcard = stat.redcard * pointSystem.red_card;
+
+      // Own goal points
+      player.owngoal = stat.owngoal * pointSystem.own_goal;
+
+      // Goals conceded points
+      let goalsConcededPoints = 0;
+      if (stat.role === "Goalkeeper" || stat.role === "Defender") {
+        goalsConcededPoints = Math.floor(stat.goalsconceded / 2) * pointSystem.goals_conceded_per_2;
+      }
+      player.goalsconceded = goalsConcededPoints;
+
+      // Set raw stats for display purposes (these show actual stats, not points)
+      player.passes = stat.passes;
+      player.shotsontarget = stat.shotsontarget;
+      player.chancecreated = stat.chancecreated;
+      player.starting = stat.starting11;
+      player.substitute = stat.substitute;
+      player.blockedshot = stat.blockedshot;
+      player.interceptionwon = stat.interceptionwon;
+      player.clearance = stat.clearance;
 
       // Add stat on the player
       player.stat = { ...stat };
@@ -192,10 +301,72 @@ export default async (
 
       // Calculate points for captain and vice captain
       if (player.is_captain) {
-        if (player.is_captain && player.minutesplayed > 0) {
+        if (player.minutesplayed > 0) {
+          player.final_fantasy_point = player.fantasy_point * 2;
+        }
+      } else if (player.is_vice_captain) {
+        // Vice-captain only gets double points if captain didn't play (0 minutes)
+        if (captainData.player && captainData.player.minutesplayed <= 0 && player.minutesplayed > 0) {
           player.final_fantasy_point = player.fantasy_point * 2;
         }
       }
+    } else {
+      // Player has no stats (didn't play or bench player)
+      player.fantasy_point = 0;
+      player.final_fantasy_point = 0;
+      
+      // Set all point values to 0 for direct properties
+      player.minutesplayed = 0;
+      player.goalscored = 0;
+      player.assist = 0;
+      player.cleansheet = 0;
+      player.shotssaved = 0;
+      player.penaltysaved = 0;
+      player.tacklesuccessful = 0;
+      player.yellowcard = 0;
+      player.redcard = 0;
+      player.owngoal = 0;
+      player.goalsconceded = 0;
+      player.penaltymissed = 0;
+      
+      // Set raw stats to 0
+      player.passes = 0;
+      player.shotsontarget = 0;
+      player.chancecreated = 0;
+      player.starting = 0;
+      player.substitute = 0;
+      player.blockedshot = 0;
+      player.interceptionwon = 0;
+      player.clearance = 0;
+
+      // Set empty stat object for consistency
+      player.stat = {
+        pid: player.pid,
+        pname: player.full_name,
+        role: player.position,
+        tname: "",
+        point: 0,
+        minutesplayed: 0,
+        goalscored: 0,
+        assist: 0,
+        passes: 0,
+        shotsontarget: 0,
+        cleansheet: 0,
+        shotssaved: 0,
+        penaltysaved: 0,
+        tacklesuccessful: 0,
+        yellowcard: 0,
+        redcard: 0,
+        owngoal: 0,
+        goalsconceded: 0,
+        penaltymissed: 0,
+        chancecreated: 0,
+        starting11: 0,
+        substitute: 0,
+        blockedshot: 0,
+        interceptionwon: 0,
+        clearance: 0
+      };
     }
   }
 

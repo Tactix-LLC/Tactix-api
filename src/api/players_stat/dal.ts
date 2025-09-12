@@ -6,12 +6,13 @@ import PlayerStatModel from "./model";
 export default class PlayerStat {
   // Create player stat
   static async createPlayerStat(data: {
-    gameweekid: string;
+    game_week_id?: string;
+    gameweekid?: string;
     players: IPlayerStat[];
   }): Promise<IPlayerStatDoc> {
     try {
       const playerStat = await PlayerStatModel.create({
-        game_week_id: data.gameweekid,
+        game_week_id: data.game_week_id || data.gameweekid,
         players: data.players,
       });
       return playerStat;
@@ -140,6 +141,82 @@ export default class PlayerStat {
         { players }
       );
       return player;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get all player stats with pagination
+  static async getAllPlayerStats(query: any, page: number, limit: number) {
+    try {
+      const skip = (page - 1) * limit;
+      const playerStats = await PlayerStatModel.find(query)
+        .populate({ path: "game_week_id", select: "game_week is_done" })
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+      return playerStats;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Count player stats documents
+  static async countPlayerStats(query: any): Promise<number> {
+    try {
+      const count = await PlayerStatModel.countDocuments(query);
+      return count;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get player stats by game week with search
+  static async getPlayerStatsByGameWeek(
+    gameWeekId: string, 
+    search?: string, 
+    page: number = 1, 
+    limit: number = 100
+  ): Promise<IPlayerStatDoc | null> {
+    try {
+      let playerStatDoc = await PlayerStatModel.findOne({
+        game_week_id: gameWeekId,
+      }).populate({ path: "game_week_id", select: "game_week is_done" });
+
+      if (!playerStatDoc) return null;
+
+      // Apply search filter if provided
+      if (search && search.trim()) {
+        const searchTerm = search.trim().toLowerCase();
+        (playerStatDoc as any).players = playerStatDoc.players.filter((player: IPlayerStat) =>
+          (player.full_name && player.full_name.toLowerCase().includes(searchTerm)) ||
+          (player.tname && player.tname.toLowerCase().includes(searchTerm)) ||
+          (player.position && player.position.toLowerCase().includes(searchTerm))
+        );
+      }
+
+      // Apply pagination
+      const skip = (page - 1) * limit;
+      (playerStatDoc as any).players = playerStatDoc.players.slice(skip, skip + limit);
+
+      return playerStatDoc;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update player stat document
+  static async updatePlayerStat(
+    id: string,
+    updateData: Partial<IPlayerStatDoc>
+  ): Promise<IPlayerStatDoc | null> {
+    try {
+      const updatedPlayerStat = await PlayerStatModel.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true }
+      ).populate({ path: "game_week_id", select: "game_week is_done" });
+      return updatedPlayerStat;
     } catch (error) {
       throw error;
     }
