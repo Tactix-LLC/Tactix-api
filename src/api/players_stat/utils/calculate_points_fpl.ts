@@ -65,8 +65,10 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     if (player.minutesplayed >= 60 && player.cleansheet === 1) {
       switch (player.role) {
         case "Goalkeeper":
-        case "Defender":
           finalData.cleansheet = pointSystem.goalkeeper_clean_sheet;
+          break;
+        case "Defender":
+          finalData.cleansheet = pointSystem.defender_clean_sheet;
           break;
         case "Midfielder":
           finalData.cleansheet = pointSystem.midfielder_clean_sheet;
@@ -137,6 +139,7 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     } else {
       finalData.goalsconceded = 0;
     }
+
 
     // Set default values
     finalData.playing_time = finalData.playing_time ?? 0;

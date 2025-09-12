@@ -943,4 +943,17 @@ export default class GameWeekTeamDAL {
       throw error;
     }
   }
+
+  // Get teams that have a specific player
+  static async getTeamsWithPlayer(gameWeekId: string, playerId: string): Promise<IGameWeekTeamDoc[]> {
+    try {
+      const teams = await GameWeekTeam.find({
+        game_week_id: gameWeekId,
+        "players.pid": playerId
+      });
+      return teams;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
