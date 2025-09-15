@@ -163,7 +163,7 @@ export const getAllPlayerStats: RequestHandler = async (req, res, next) => {
 // Get player stats for a specific game week
 export const getPlayerStatsByGameWeek: RequestHandler = async (req, res, next) => {
   try {
-    const { gameWeekId } = req.params;
+    const { gameweekid: gameWeekId } = req.params;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 100;
     const search = req.query.search as string;
