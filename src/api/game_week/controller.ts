@@ -9,6 +9,7 @@ import Competition from "../competition/dal";
 import axios from "axios";
 import configs from "../../configs";
 import GameWeekTeam from "../game_week_team/dal";
+import GameWeekTeamModel from "../game_week_team/model";
 import { Player } from "./dto";
 import player_stats from "../team/utils/player_stats";
 import { IPlayersData } from "../team/dto";
@@ -759,10 +760,13 @@ export const updateToDone: RequestHandler = async (req, res, next) => {
               players: players,
             });
 
-          // Update players on team
+          // Calculate cumulative total fantasy points across all completed game weeks
+          const cumulativeTotal = await calculateCumulativeTeamPoints(gameWeekTeam.team_id);
+
+          // Update players on team with cumulative total
           const updatedTeam = await TeamDAL.updateFantasyPointAndPlayers({
             id: gameWeekTeam.team_id,
-            total_fantasy_point: totalPoint,
+            total_fantasy_point: cumulativeTotal,
           });
         });
       }
@@ -1026,3 +1030,26 @@ export const rescheduleAutoJoinJobs: RequestHandler = async (req, res, next) => 
     next(error);
   }
 };
+
+// Helper function to calculate cumulative team points across all completed game weeks
+async function calculateCumulativeTeamPoints(teamId: string): Promise<number> {
+  try {
+    // Get all game week teams for this team across all game weeks
+    const allGameWeekTeams = await GameWeekTeam.getByTeamId(teamId);
+    
+    let cumulativeTotal = 0;
+    
+    for (const gameWeekTeam of allGameWeekTeams) {
+      // Only include points from completed game weeks
+      const gameWeek = await GameWeek.getGameWeekById(gameWeekTeam.game_week_id);
+      if (gameWeek && gameWeek.is_done) {
+        cumulativeTotal += gameWeekTeam.total_fantasy_point || 0;
+      }
+    }
+    
+    return cumulativeTotal;
+  } catch (error) {
+    console.error('Error calculating cumulative team points:', error);
+    return 0;
+  }
+}
