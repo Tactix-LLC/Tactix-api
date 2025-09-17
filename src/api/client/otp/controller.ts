@@ -22,7 +22,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     }
 
     // Check if there is a client
-    const clientEmail = await Client.getClienyByEmail(data.email);
+    const clientEmail = await Client.getClientByEmail(data.email);
     if (clientEmail)
       return next(
         new AppError("You already have an account. Please login", 400)

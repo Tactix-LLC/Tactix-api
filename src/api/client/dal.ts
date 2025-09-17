@@ -36,7 +36,7 @@ export default class Client {
   }
 
   // Get a client using phone number
-  static async getClienyByPhonenumber(
+  static async getClientByPhonenumber(
     phone_number: string
   ): Promise<IClientDoc | null> {
     try {
@@ -48,8 +48,8 @@ export default class Client {
     }
   }
 
-  // Get a client using phone number
-  static async getClienyByEmail(
+  // Get a client using email
+  static async getClientByEmail(
     email: string
   ): Promise<IClientDoc | null> {
     try {
@@ -446,29 +446,6 @@ export default class Client {
     }
   }
 
-  // Get by phone number
-  static async getClientByPhoneNumber(
-    phone_number: string
-  ): Promise<IClientDoc | null> {
-    try {
-      const client = await ClientModel.findOne({ phone_number });
-      return client;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Get by email
-  static async getClientByEmail(
-    email: string
-  ): Promise<IClientDoc | null> {
-    try {
-      const client = await ClientModel.findOne({ email });
-      return client;
-    } catch (error) {
-      throw error;
-    }
-  }
 
   // Update earned commission of agents
   static async updateEarnedAvailableCommission(data: {
