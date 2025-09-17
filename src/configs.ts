@@ -61,5 +61,8 @@ export default {
     client_id: "545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com", // Android
     ios_client_id: "545588730676-cubab3ceuge681a5s1stjl30g8fd1lbt.apps.googleusercontent.com", // iOS
   },
+  apple: {
+    clientId: "app.jointactix.fantasy", // Your app's bundle ID
+  },
   api_url,
 };

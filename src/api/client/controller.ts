@@ -25,7 +25,7 @@ export const clientLogin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.ILogin>req.value;
 
     // Get client and check pin
-    const client = await Client.getClienyByEmail(data.email);
+    const client = await Client.getClientByEmail(data.email);
     if (!client || !client.comparePin(data.pin, client.pin))
       return next(new AppError("Invalid phone number or pin", 400));
 
@@ -120,7 +120,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
     const { email } = <ClientRequest.IForgotPin>req.value;
 
     // Check if there is a client with the specified email
-    const client = await Client.getClienyByEmail(email);
+    const client = await Client.getClientByEmail(email);
     if (!client)
       return next(
         new AppError("There is no client with the specified email", 404)
@@ -216,7 +216,7 @@ export const verifyResetOtp: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IVerifyResetOtp>req.value;
 
     // Get client
-    const client = await Client.getClienyByEmail(data.email);
+    const client = await Client.getClientByEmail(data.email);
     if (!client)
       return next(
         new AppError("There is no client with the specified email", 404)
@@ -262,7 +262,7 @@ export const resetPin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IResetPin>req.value;
 
     // Get client
-    const client = await Client.getClienyByEmail(data.email);
+    const client = await Client.getClientByEmail(data.email);
     if (!client)
       return next(
         new AppError("There is no client with the specified email", 404)
@@ -336,7 +336,7 @@ export const getClientByPhoneNumber: RequestHandler = async (
   next
 ) => {
   try {
-    const client = await Client.getClientByPhoneNumber(req.params.phone_number);
+    const client = await Client.getClientByPhonenumber(req.params.phone_number);
     if (!client)
       return next(
         new AppError("There is no client with the specified phone number", 404)

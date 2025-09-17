@@ -8,8 +8,9 @@ const socialLoginValidation = [
     .withMessage("Provider must be google, facebook, or apple"),
   
   body("id_token")
-    .notEmpty()
-    .withMessage("ID token is required"),
+    .optional()
+    .isString()
+    .withMessage("ID token must be a string"),
   
   body("email")
     .isEmail()
@@ -31,6 +32,25 @@ const socialLoginValidation = [
     .optional()
     .isString()
     .withMessage("Access token must be a string"),
+  
+  // Custom validation to ensure required tokens are provided based on provider
+  body().custom((value) => {
+    const { provider, id_token, access_token } = value;
+    
+    if (provider === 'google' || provider === 'apple') {
+      if (!id_token) {
+        throw new Error('ID token is required for Google and Apple sign-in');
+      }
+    }
+    
+    if (provider === 'facebook') {
+      if (!access_token) {
+        throw new Error('Access token is required for Facebook sign-in');
+      }
+    }
+    
+    return true;
+  }),
   
   body("profile_picture")
     .optional()
