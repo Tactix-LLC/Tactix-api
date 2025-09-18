@@ -45,13 +45,13 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       return next(new AppError("Pin and Pin confirm should be similar", 401));
     }
 
-    // Check age (only if birth_date is provided)
-    if (data.birth_date) {
-      const currentYear = new Date(Date.now()).getFullYear();
-      const clientBirthYear = new Date(data.birth_date).getFullYear();
-      const age = currentYear - clientBirthYear;
-      if (age < 18) return next(new AppError("Under age", 403));
-    }
+    // Age validation removed - app now supports all ages
+    // if (data.birth_date) {
+    //   const currentYear = new Date(Date.now()).getFullYear();
+    //   const clientBirthYear = new Date(data.birth_date).getFullYear();
+    //   const age = currentYear - clientBirthYear;
+    //   if (age < 18) return next(new AppError("Under age", 403));
+    // }
 
     // Otp count
     let otp_count: number = 1;

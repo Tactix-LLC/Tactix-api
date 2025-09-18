@@ -8,7 +8,7 @@ export const loginValidation = Joi.object({
 export const updateProfileValidation = Joi.object({
   first_name: Joi.string().required(),
   last_name: Joi.string().required(),
-  birth_date: Joi.date().required(),
+  birth_date: Joi.date().optional(),
   phone_number: Joi.number().optional(),
 });
 
