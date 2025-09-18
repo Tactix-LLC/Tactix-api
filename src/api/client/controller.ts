@@ -55,11 +55,13 @@ export const updateProfile: RequestHandler = async (req, res, next) => {
     // Get client
     const getClient = <IClientDoc>req.user;
 
-    // Check age
-    const currentYear = new Date(Date.now()).getFullYear();
-    const clientBirthYear = new Date(data.birth_date).getFullYear();
-    const age = currentYear - clientBirthYear;
-    if (age < 18) return next(new AppError("Under age", 403));
+    // Age validation removed - app now supports all ages
+    // if (data.birth_date) {
+    //   const currentYear = new Date(Date.now()).getFullYear();
+    //   const clientBirthYear = new Date(data.birth_date).getFullYear();
+    //   const age = currentYear - clientBirthYear;
+    //   if (age < 18) return next(new AppError("Under age", 403));
+    // }
 
     const client = await Client.updateClientProfile(getClient.id, data);
 

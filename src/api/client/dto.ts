@@ -64,7 +64,7 @@ declare global {
     interface IUpdateProfile {
       first_name: string;
       last_name: string;
-      birth_date: Date;
+      birth_date?: Date;
     }
     interface IUpdatePin {
       current_pin: string;

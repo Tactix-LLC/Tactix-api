@@ -13,6 +13,7 @@ import {
 import validator from "../../utils/validator";
 import {
   createFeedbackTitleValidation,
+  updateFeedbackTitleValidation,
   updateFeedbackTitleStatusValidation,
   deleteAllFeedbackTitlesValidation,
 } from "./validation";
@@ -49,13 +50,13 @@ router
   .patch(
     protect,
     auth("Super-admin", "Admin"),
-    validator(createFeedbackTitleValidation),
+    validator(updateFeedbackTitleValidation),
     updateFeedbackTitle
   )
   .delete(protect, auth("Super-admin", "Admin"), deleteFeedbackTitle);
 
 router.patch(
-  "/status/:id",
+  "/:id/status",
   protect,
   auth("Super-admin", "Admin"),
   validator(updateFeedbackTitleStatusValidation),
