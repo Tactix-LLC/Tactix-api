@@ -38,6 +38,7 @@ declare global {
   namespace FantasyRoasterRequest {
     interface ICreateFantasyRoasterInput {
       season_name: string;
+      season_id: string;
       players: IPlayer[];
     }
     interface IUpdatePlayerRating {

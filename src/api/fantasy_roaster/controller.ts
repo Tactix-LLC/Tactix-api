@@ -25,11 +25,16 @@ export const createFantasyRoaster: RequestHandler = async (req, res, next) => {
         )
       );
 
-    // Get the season
-    const season = await Season.getAll();
-    if (season.length === 0)
-      return next(new AppError("There is no season", 404));
-    const season_name = season[0].name;
+    // Get the selected season
+    const { season_id } = req.body;
+    if (!season_id) {
+      return next(new AppError("Season ID is required", 400));
+    }
+    
+    const season = await Season.getById(season_id);
+    if (!season)
+      return next(new AppError("Season not found", 404));
+    const season_name = season.name;
 
     // Get the active game week
     const gameWeek = await GameWeek.getLiveGameWeek();
@@ -55,6 +60,7 @@ export const createFantasyRoaster: RequestHandler = async (req, res, next) => {
     if (allPlayers.length > 0) {
       const fantasyRoaster = await FantasyRoaster.createFantasyRoaster({
         season_name,
+        season_id,
         players: allPlayers,
       });
 

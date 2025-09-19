@@ -3,6 +3,7 @@ import axios from "axios";
 import { IPlayer, ITeam } from "./dto";
 const router: Router = Router();
 import FantasyRoaster from "./dal";
+import Season from "../season/dal";
 import mongoose from "mongoose";
 
 // Controllers
@@ -45,8 +46,18 @@ router.get("/all", protect, auth("Super-admin", "Admin"), getAllRoasters);
 
 // To Populate the roaster
 // Endpoint to fetch and populate players
-router.get('/populate-players', async (req, res) => {
+router.get('/populate-players/:season_id', async (req, res) => {
   try {
+    const { season_id } = req.params;
+    
+    // Get the season details
+    const season = await Season.getById(season_id);
+    if (!season) {
+      return res.status(404).json({ 
+        error: 'Season not found' 
+      });
+    }
+    
     // Use the hardcoded Premier League competition ID and token
     const competitionId = '992';
     const token = '44689d60663efa7ad59e4903675b794e';
@@ -112,7 +123,8 @@ router.get('/populate-players', async (req, res) => {
 
     // Call the function to create the FantasyRoaster record
     await FantasyRoaster.createFantasyRoaster({
-      season_name: "Test", // Season name
+      season_name: season.name, // Use the actual season name
+      season_id: season_id, // Use the season ID
       players: players, // List of players
     });
 

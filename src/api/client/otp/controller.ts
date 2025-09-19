@@ -9,6 +9,7 @@ import generateToken from "../../../utils/generate_token";
 import configs from "../../../configs";
 import axios from "axios";
 import nodemailer from "nodemailer";
+import { generateOTPEmailTemplate } from "../../../utils/email_templates";
 
 export const sendOtp: RequestHandler = async (req, res, next) => {
   try {
@@ -128,7 +129,8 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       const mailOptions = {
         from: configs.email.auth.user,
         to: data.email,
-        subject: "Your OTP Code",
+        subject: "Verify Your Email - Tactix Football Fantasy",
+        html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
         text: `Your OTP is ${otp}`,
       };
 
@@ -154,7 +156,8 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       const mailOptions = {
         from: configs.email.auth.user,
         to: data.email,
-        subject: "Your OTP Code",
+        subject: "Verify Your Email - Tactix Football Fantasy",
+        html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
         text: `Your OTP is ${otp}`,
       };
 
