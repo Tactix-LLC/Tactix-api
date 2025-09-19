@@ -1,16 +1,13 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 
-import GameWeek from "../game_week/dal";
 import Season from "../season/dal";
+import Competition from "../competition/dal";
 import FantasyRoaster from "./dal";
 
 import AppError from "../../utils/app_error";
-import fetch_matches from "./utils/fetch_matches";
-import get_players from "./utils/get_players";
+import configs from "../../configs";
 
 import IFantasyRoasterDoc, { IPlayer } from "./dto";
-import configs from "../../configs";
-import { convertToObject } from "typescript";
 
 // Get all players from Entity Sport and Check if there are new players
 export const createFantasyRoaster: RequestHandler = async (req, res, next) => {
@@ -25,57 +22,53 @@ export const createFantasyRoaster: RequestHandler = async (req, res, next) => {
         )
       );
 
-    // Get the season
-    const season = await Season.getAll();
-    if (season.length === 0)
-      return next(new AppError("There is no season", 404));
-    const season_name = season[0].name;
+    // Get the selected season and competition
+    const { season_id, competition_id } = req.body;
+    if (!season_id) {
+      return next(new AppError("Season ID is required", 400));
+    }
+    if (!competition_id) {
+      return next(new AppError("Competition ID is required", 400));
+    }
+    
+    const season = await Season.getById(season_id);
+    if (!season)
+      return next(new AppError("Season not found", 404));
+    
+    const competition = await Competition.getCompetition(competition_id);
+    if (!competition)
+      return next(new AppError("Competition not found", 404));
+    
+    const season_name = season.name;
+    const competition_cid = competition.cid;
 
-    // Get the active game week
-    const gameWeek = await GameWeek.getLiveGameWeek();
-    if (!gameWeek)
-      return next(new AppError("There is no active game week", 400));
-
-    // Fetch the matches
-    const matchIds = await fetch_matches({
-      cid: gameWeek.cid,
-      game_week: gameWeek.game_week,
-    });
-
-    // Players
+    // Instead of using game week matches, let's create an empty roaster
+    // Users can populate players separately using the populate-players endpoint
     const allPlayers: IPlayer[] = [];
 
-    // Get the players
-    for (let i = 0; i < matchIds.length; i++) {
-      const players = await get_players(matchIds[i]);
-      allPlayers.push(...players);
-    }
+    // Create fantasy roaster with empty players array
+    // Players can be populated later using the populate-players endpoint
+    const fantasyRoaster = await FantasyRoaster.createFantasyRoaster({
+      season_name,
+      season_id,
+      competition_id,
+      competition_cid,
+      players: allPlayers, // Empty array
+    });
 
-    // Create fantasy roaster
-    if (allPlayers.length > 0) {
-      const fantasyRoaster = await FantasyRoaster.createFantasyRoaster({
-        season_name,
-        players: allPlayers,
-      });
+    // Cache Roaster
+    await FantasyRoaster.cacheActiveRoaster(fantasyRoaster);
 
-      // Cache Roaster
-      await FantasyRoaster.cacheActiveRoaster(fantasyRoaster);
-
-      // Respond
-      res.status(200).json({
-        status: "SUCCESS",
-        results: allPlayers.length,
-        data: {
-          fantasyRoaster,
-        },
-      });
-    } else {
-      // Respond
-      res.status(400).json({
-        status: "FAIL",
-        message: "There are no players to fetch",
-      });
-    }
+    // Respond
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Fantasy roaster created successfully. Use the populate-players endpoint to add players.",
+      data: {
+        fantasyRoaster,
+        totalPlayers: 0,
+        note: "Roaster created empty. Use populate-players endpoint to add players from the selected competition."
+      },
+    });
   } catch (error) {
     next(error);
   }

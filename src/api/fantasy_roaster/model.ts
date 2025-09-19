@@ -9,6 +9,20 @@ const fantasyRoasterSchema = new Schema(
       required: [true, "Season name is required"],
       unique: true,
     },
+    season_id: {
+      type: mongoose.Types.ObjectId,
+      ref: "Season",
+      required: [true, "Season ID is required"],
+    },
+    competition_id: {
+      type: mongoose.Types.ObjectId,
+      ref: "Competition",
+      required: [true, "Competition ID is required"],
+    },
+    competition_cid: {
+      type: String,
+      required: [true, "Competition CID is required"],
+    },
     is_active: {
       type: Boolean,
       default: true,

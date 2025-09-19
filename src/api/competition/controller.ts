@@ -47,8 +47,9 @@ export const createCompetition: RequestHandler = async (req, res, next) => {
       return next(new AppError("Competition not found", 404));
     }
 
-    // Check competition is not completed
-    if (parseInt(data.status) === 2)
+    // Check competition is not completed (unless allow_completed=true is passed)
+    const allowCompleted = req.query.allow_completed === 'true';
+    if (parseInt(data.status) === 2 && !allowCompleted)
       return next(
         new AppError(
           "You can not create a competition that is already completed",

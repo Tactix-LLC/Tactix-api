@@ -3,6 +3,9 @@ import { Document } from "mongoose";
 // Fantasy Roaster Interface
 export default interface IFantasyRoasterDoc extends Document {
   season_name: string;
+  season_id: string;
+  competition_id: string;
+  competition_cid: string;
   is_active: boolean;
   players: IFantasyRoasterPlayer[];
   createdAt: Date;
@@ -38,6 +41,9 @@ declare global {
   namespace FantasyRoasterRequest {
     interface ICreateFantasyRoasterInput {
       season_name: string;
+      season_id: string;
+      competition_id: string;
+      competition_cid: string;
       players: IPlayer[];
     }
     interface IUpdatePlayerRating {

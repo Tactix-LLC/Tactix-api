@@ -1,5 +1,6 @@
 import axios from "axios";
 import { RequestHandler } from "express";
+import { generatePasswordResetEmailTemplate } from "../../utils/email_templates";
 
 import GameWeekDAL from "../game_week/dal";
 
@@ -171,7 +172,8 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       const mailOptions = {
         from: configs.email.auth.user,
         to: email,
-        subject: "Password Reset OTP",
+        subject: "Reset Your Password - Tactix Football Fantasy",
+        html: generatePasswordResetEmailTemplate(otp, client.first_name),
         text: `Your password reset OTP is ${otp}`,
       };
 
@@ -196,7 +198,8 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       const mailOptions = {
         from: configs.email.auth.user,
         to: email,
-        subject: "Password Reset OTP",
+        subject: "Reset Your Password - Tactix Football Fantasy",
+        html: generatePasswordResetEmailTemplate(otp, client.first_name),
         text: `Your password reset OTP is ${otp}`,
       };
 
