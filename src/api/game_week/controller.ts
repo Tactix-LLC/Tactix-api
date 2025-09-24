@@ -8,6 +8,7 @@ import Season from "../season/dal";
 import Competition from "../competition/dal";
 import axios from "axios";
 import configs from "../../configs";
+import TimezoneUtil from "../../utils/timezone";
 import GameWeekTeam from "../game_week_team/dal";
 import GameWeekTeamModel from "../game_week_team/model";
 import { Player } from "./dto";
@@ -46,25 +47,47 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     if (!competition)
       return next(new AppError("Unknown competition selected", 400));
 
-    // Get all matches in a competition to get the latest round.
-    const competitionMatches = await axios.get(
-      `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${game_week}`
-    );
-
-    if (competitionMatches.data.status !== "ok")
-      return next(
-        new AppError("Sorry, Competition match does not exist.", 404)
+    // Get all matches for the specific round by fetching multiple pages
+    let allMatches: any[] = [];
+    let currentPage = parseInt(game_week);
+    let hasMorePages = true;
+    let maxPagesChecked = 0;
+    
+    while (hasMorePages && maxPagesChecked < 10) { // Safety limit to prevent infinite loops
+      const competitionMatches = await axios.get(
+        `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${currentPage}`
       );
 
-    // Match IDS
+      if (competitionMatches.data.status !== "ok") {
+        break; // Stop if API returns error
+      }
+
+      const pageMatches = competitionMatches.data.response.items;
+      const roundMatchesFromPage = pageMatches.filter((match: any) => match.round === game_week);
+      
+      // Add matches from this page
+      allMatches.push(...roundMatchesFromPage);
+      
+      // Check if we should continue to next page
+      // If this page has matches from our round, continue to next page
+      // If this page has no matches from our round, we've found all matches
+      hasMorePages = roundMatchesFromPage.length > 0;
+      currentPage++;
+      maxPagesChecked++;
+    }
+    
+    if (allMatches.length === 0) {
+      return next(new AppError(`No matches found for round ${game_week}`, 404));
+    }
+
+    // Match IDS (only from the specific round)
     const matchIds: string[] = [];
-    const matches: { mid: string }[] = competitionMatches.data.response.items;
-    matches.forEach((match) => {
+    allMatches.forEach((match: any) => {
       matchIds.push(match.mid);
     });
 
-    // Last match
-    const lastMatch = competitionMatches.data.response.items[9];
+    // Last match (from the specific round)
+    const lastMatch = allMatches[allMatches.length - 1];
 
     // Check if there is an active game week
     const activeGameweek = await GameWeek.getLiveGameWeek();
@@ -76,21 +99,25 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
         `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${activeGameweek.game_week}`
       );
 
-      const previousLastMatch =
-        previousCompetitionMatches.data.response.items[9];
+      const previousAllMatches = previousCompetitionMatches.data.response.items;
+      const previousRoundMatches = previousAllMatches.filter((match: any) => match.round === activeGameweek.game_week);
+      
+      if (previousRoundMatches.length > 0) {
+        const previousLastMatch = previousRoundMatches[previousRoundMatches.length - 1];
 
-      if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
-        return next(
-          new AppError(
-            "The current game week is not done yet. Please create a new game week once the current game week ends",
-            400
-          )
-        );
+        if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
+          return next(
+            new AppError(
+              "The current game week is not done yet. Please create a new game week once the current game week ends",
+              400
+            )
+          );
+        }
       }
     }
 
-    // First match of the game week0
-    const firstMatch = competitionMatches.data.response.items[0];
+    // First match of the game week (from the specific round)
+    const firstMatch = allMatches[0];
 
     // Check game week(from request body) is same as the round in the first index of 'response'
     // TODO Beka Check for last gameweek commented
@@ -98,16 +125,9 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     //   return next(new AppError("Please select latest round", 400));
     // }
 
-    // GMT
-    const ethiopianMatchStart = new Date(firstMatch.datestart).getTime();
-    const ethiopianMatchEnd = new Date(lastMatch.dateend).getTime();
-
-    // const ethiopianMatchStart = new Date("2023-08-20T15:00:00.000Z").getTime();
-    // const ethiopianMatchEnd = new Date(lastMatch.dateend).getTime();
-
-    // Deadlines
-    const transfer_deadline = ethiopianMatchStart - 2 * 60 * 60 * 1000;
-    const purchase_deadline = ethiopianMatchStart - 5 * 60 * 1000;
+    // Calculate deadlines using proper timezone handling
+    const deadlines = TimezoneUtil.calculateDeadlines(firstMatch.datestart);
+    const ethiopianMatchEnd = TimezoneUtil.convertEntitySportDate(lastMatch.dateend);
 
     // Create game week
     const gameWeek = await GameWeek.createGameWeek({
@@ -116,10 +136,10 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       competition_id,
       sid: season.season_id,
       cid: competition.cid,
-      purchase_deadline: new Date(purchase_deadline),
-      transfer_deadline: new Date(transfer_deadline),
-      first_match_start_date: new Date(ethiopianMatchStart),
-      last_match_end_date: new Date(ethiopianMatchEnd),
+      purchase_deadline: deadlines.purchase_deadline,
+      transfer_deadline: deadlines.transfer_deadline,
+      first_match_start_date: deadlines.first_match_start_utc,
+      last_match_end_date: ethiopianMatchEnd,
       match_ids: matchIds,
       is_free,
     });
@@ -209,13 +229,9 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       }
     }
 
-    // GMT
-    const ethiopianMatchStart = new Date(first_match_start_date).getTime();
-    const ethiopianMatchEnd = new Date(last_match_end_date).getTime();
-
-    // Deadlines
-    const transfer_deadline_manual = ethiopianMatchStart - 2 * 60 * 60 * 1000;
-    const purchase_deadline_manual = ethiopianMatchStart - 5 * 60 * 1000;
+    // Calculate deadlines using proper timezone handling
+    const deadlines = TimezoneUtil.calculateDeadlines(first_match_start_date);
+    const ethiopianMatchEnd = TimezoneUtil.convertEntitySportDate(last_match_end_date.toString());
 
     // Create game week
     const gameWeek = await GameWeek.createGameWeek({
@@ -224,10 +240,10 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       competition_id,
       sid: season.season_id,
       cid: competition.cid,
-      purchase_deadline: new Date(purchase_deadline_manual),
-      transfer_deadline: new Date(transfer_deadline_manual),
-      first_match_start_date: new Date(ethiopianMatchStart),
-      last_match_end_date: new Date(ethiopianMatchEnd),
+      purchase_deadline: deadlines.purchase_deadline,
+      transfer_deadline: deadlines.transfer_deadline,
+      first_match_start_date: deadlines.first_match_start_utc,
+      last_match_end_date: ethiopianMatchEnd,
       match_ids,
       is_free,
     });
@@ -316,12 +332,9 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
       }
     }
 
-    const ethiopianMatchStart = new Date(first_match_start_date).getTime();
-    const ethiopianMatchEnd = new Date(last_match_end_date).getTime();
-
-    // Deadlines
-    const td = new Date(ethiopianMatchStart).getTime() - 2 * 60 * 60 * 1000;
-    const pd = new Date(ethiopianMatchStart).getTime() - 5 * 60 * 1000;
+    // Calculate deadlines using proper timezone handling
+    const deadlines = TimezoneUtil.calculateDeadlines(first_match_start_date);
+    const ethiopianMatchEnd = TimezoneUtil.convertEntitySportDate(last_match_end_date.toString());
 
     // Create game week
     const gameWeek = await GameWeek.createDoubleGameWeek({
@@ -330,14 +343,14 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
       competition_id,
       sid: season.season_id,
       cid: competition.cid,
-      purchase_deadline: new Date(pd),
-      transfer_deadline: new Date(td),
-      first_match_start_date: new Date(ethiopianMatchStart),
-      last_match_end_date: new Date(ethiopianMatchEnd),
+      purchase_deadline: deadlines.purchase_deadline,
+      transfer_deadline: deadlines.transfer_deadline,
+      first_match_start_date: deadlines.first_match_start_utc,
+      last_match_end_date: ethiopianMatchEnd,
       match_ids,
       is_double_gameweek,
-      double_gameweek_first_match: new Date(double_gameweek_first_match),
-      double_gameweek_transfer_deadline: new Date(td),
+      double_gameweek_first_match: TimezoneUtil.convertEntitySportDate(double_gameweek_first_match.toString()),
+      double_gameweek_transfer_deadline: deadlines.transfer_deadline,
       double_gameweek_teams,
       is_free,
     });

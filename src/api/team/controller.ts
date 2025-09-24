@@ -36,6 +36,13 @@ export const createTeam: RequestHandler = async (req, res, next) => {
     data.team_name_slug = data.team_name.toLowerCase();
     data.team_name_slug = slugifer(data.team_name_slug);
 
+    console.log("=== TEAM CREATION DEBUG ===");
+    console.log("User ID:", loggedInUser.id);
+    console.log("User credit:", loggedInUser.credit);
+    console.log("Team name:", data.team_name);
+    console.log("Favorite coach:", data.favorite_coach);
+    console.log("Number of players in request:", data.players?.length || 0);
+
     // Check coach exists in DB
     const favorite_coach = await CoachDAL.getCoachById(data.favorite_coach);
     if (!favorite_coach) return next(new AppError("Coach not found", 404));
@@ -43,6 +50,8 @@ export const createTeam: RequestHandler = async (req, res, next) => {
     // Check total price of all players is within the user's budget
     const totalPlayersPrice = checkTotalPlayersPrice(data.players);
     data.budget = parseFloat((100 - totalPlayersPrice).toFixed(1)); // Update team budget
+    console.log("Calculated team budget:", data.budget);
+    console.log("=== END TEAM CREATION DEBUG ===");
 
     // Check number of players at each position
     checkNumOfPlayersAtEachPosition(data.players);

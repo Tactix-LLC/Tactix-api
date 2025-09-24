@@ -382,4 +382,16 @@ export default class GameWeekDAL {
       throw error;
     }
   }
+
+  // Get all completed game weeks
+  static async getCompletedGameWeeks(): Promise<IGameWeekDoc[]> {
+    try {
+      const completedGameWeeks = await GameWeekModel.find({ 
+        is_done: true 
+      }).sort({ createdAt: 1 });
+      return completedGameWeeks;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

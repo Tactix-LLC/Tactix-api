@@ -160,6 +160,37 @@ export const getAllPlayerStats: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Get aggregated player stats across all game weeks (for mobile app)
+export const getAggregatedPlayerStats: RequestHandler = async (req, res, next) => {
+  try {
+    // Get all completed game weeks
+    const completedGameWeeks = await GameWeek.getCompletedGameWeeks();
+    
+    if (!completedGameWeeks || completedGameWeeks.length === 0) {
+      return res.status(200).json({
+        status: "SUCCESS",
+        message: "No completed game weeks found",
+        data: {
+          playerStat: []
+        }
+      });
+    }
+
+    // Get all player stats for completed game weeks
+    const aggregatedStats = await PlayerStat.getAggregatedPlayerStats();
+    
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Aggregated player stats retrieved successfully",
+      data: {
+        playerStat: aggregatedStats
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get player stats for a specific game week
 export const getPlayerStatsByGameWeek: RequestHandler = async (req, res, next) => {
   try {
