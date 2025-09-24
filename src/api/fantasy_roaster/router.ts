@@ -6,6 +6,7 @@ import FantasyRoaster from "./dal";
 import Season from "../season/dal";
 import Competition from "../competition/dal";
 import mongoose from "mongoose";
+import configs from "../../configs";
 
 // Controllers
 import {
@@ -69,8 +70,8 @@ router.get('/populate-players/:season_id/:competition_id', async (req, res) => {
     
     // Use the selected competition ID and token
     const competitionId = competition.cid;
-    const token = '44689d60663efa7ad59e4903675b794e';
-    const baseUrl = 'https://soccer.entitysport.com';
+    const token = configs.entity_sport.token;
+    const baseUrl = configs.entity_sport.url;
 
     console.log(`Fetching all teams from ${competition.competition_name} (competition ${competitionId})`);
 

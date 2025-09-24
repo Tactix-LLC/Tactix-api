@@ -10,6 +10,7 @@ import {
 import {
   createPlayerStat,
   getAllPlayerStats,
+  getAggregatedPlayerStats,
   getPlayerStatsByGameWeek,
   updatePlayerStat,
   bulkUpdatePlayerStats,
@@ -23,6 +24,14 @@ router.get(
   protect,
   auth("Super-admin", "Admin", "Client"),
   getAllPlayerStats
+);
+
+// New route for aggregated player stats (for mobile app)
+router.get(
+  "/aggregated",
+  protect,
+  auth("Super-admin", "Admin", "Client"),
+  getAggregatedPlayerStats
 );
 
 router

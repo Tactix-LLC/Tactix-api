@@ -5,6 +5,7 @@ import Team from '../../team/dal';
 import Client from '../../client/dal';
 import SystemSettings from '../../system_settings/model';
 import IGameWeekDoc from '../dto';
+import TimezoneUtil from '../../../utils/timezone';
 
 /**
  * Auto-join job system for game weeks
@@ -34,9 +35,8 @@ export class AutoJoinJobManager {
         return;
       }
 
-      // Calculate auto-join time (deadline - hours before)
-      const autoJoinTime = new Date(gameWeek.transfer_deadline);
-      autoJoinTime.setHours(autoJoinTime.getHours() - hoursBefore);
+      // Calculate auto-join time using timezone utility
+      const autoJoinTime = TimezoneUtil.calculateAutoJoinTime(gameWeek.transfer_deadline, hoursBefore);
 
       // Don't schedule if auto-join time has already passed
       if (autoJoinTime <= new Date()) {
