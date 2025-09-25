@@ -178,7 +178,7 @@ const SystemSettingsSchema = new Schema<ISystemSettings>({
   
   auto_join_hours_before: {
     type: Number,
-    default: 2,
+    default: 0,
   },
   
   transfer_deadline_hours_before: {
@@ -257,7 +257,7 @@ const SystemSettingsSchema = new Schema<ISystemSettings>({
     },
     hours_before_deadline: {
       type: Number,
-      default: 2,
+      default: 0,
     },
     max_retry_attempts: {
       type: Number,

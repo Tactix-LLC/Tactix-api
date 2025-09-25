@@ -5,6 +5,16 @@ import generateToken from "../../../utils/generate_token";
 import Client from "../dal";
 import configs from "../../../configs";
 
+// Generate random password with letters and numbers
+const generateRandomPassword = (length: number = 8): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 // Google Sign-In verification using Google Auth Library
 const verifyGoogleToken = async (idToken: string) => {
   try {
@@ -150,14 +160,15 @@ export const socialLogin: RequestHandler = async (req, res, next) => {
     if (!client) {
       // Create new user
       console.log('Creating new user...');
+      const randomPassword = generateRandomPassword(8); // Generate random 8-character password
       const clientData = {
         first_name: first_name || verifiedData.given_name || verifiedData.name?.split(' ')[0] || 'User',
         last_name: last_name || verifiedData.family_name || verifiedData.name?.split(' ').slice(1).join(' ') || '',
         email: email || verifiedData.email,
         phone_number: undefined, // Social login users don't need phone number
         birth_date: undefined,
-        pin: '0000', // Default pin for social login users
-        pin_confirm: '0000',
+        pin: randomPassword,
+        pin_confirm: randomPassword,
         accept: true,
         agent_code: '', // Empty string instead of undefined
         ref_agent_code: '',

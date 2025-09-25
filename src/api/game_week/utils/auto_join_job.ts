@@ -28,7 +28,7 @@ export class AutoJoinJobManager {
       // Get system settings for auto-join configuration
       const settings = await SystemSettings.findOne().sort({ created_at: -1 });
       const autoJoinEnabled = settings?.auto_join?.enabled ?? true;
-      const hoursBefore = settings?.auto_join?.hours_before_deadline ?? 2;
+      const hoursBefore = settings?.auto_join?.hours_before_deadline ?? 0;
 
       if (!autoJoinEnabled) {
         console.log(`🚫 Auto-join disabled for game week: ${gameWeek.game_week}`);

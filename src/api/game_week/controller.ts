@@ -19,6 +19,7 @@ import calculate_fantasy_points from "../team/utils/calculate_fantasy_points";
 import calculate_points from "./utils/calculate_points";
 import live_rank from "../game_week_team/utils/live_rank";
 import AutoJoinJobManager from "./utils/auto_join_job";
+import NotificationJobManager from "./utils/notification_job";
 
 // Create game weeks
 export const createGameWeek: RequestHandler = async (req, res, next) => {
@@ -157,6 +158,14 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
     }
 
+    // Schedule transfer deadline reminder notification
+    try {
+      await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek);
+      console.log(`✅ Transfer deadline reminder scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
+    }
+
     // Response
     res.status(201).json({
       status: "SUCCESS",
@@ -259,6 +268,14 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
     } catch (error) {
       console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
+    }
+
+    // Schedule transfer deadline reminder notification
+    try {
+      await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek);
+      console.log(`✅ Transfer deadline reminder scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
@@ -366,6 +383,14 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
       console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
     } catch (error) {
       console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
+    }
+
+    // Schedule transfer deadline reminder notification
+    try {
+      await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek);
+      console.log(`✅ Transfer deadline reminder scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
