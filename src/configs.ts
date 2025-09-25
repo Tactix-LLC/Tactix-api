@@ -64,5 +64,11 @@ export default {
   apple: {
     clientId: "app.jointactix.fantasy", // Your app's bundle ID
   },
+  firebase: {
+    projectId: "tactix-5f3c2",
+    projectNumber: "545588730676",
+    webApiKey: "AIzaSyCG5iWDEEd_irGZfaOphi_eLi6asysPUrg",
+    serviceAccountKey: process.env.FIREBASE_SERVICE_ACCOUNT_KEY, // JSON string or path to file
+  },
   api_url,
 };

@@ -5,6 +5,7 @@ import app from "./server";
 import mongo from "./mongo";
 import RedisClient from "./redis";
 import { RedisClientType } from "redis";
+import FirebaseService from "../utils/firebase";
 
 const CPUS = os.cpus().length;
 
@@ -51,6 +52,9 @@ export default () => {
 
   // Redis
   const redis_client: RedisClientType = RedisClient.start();
+
+  // Firebase
+  FirebaseService.initialize();
 
   // Majestic Close
   process.on("SIGINT", async () => {

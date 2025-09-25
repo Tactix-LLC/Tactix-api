@@ -99,6 +99,11 @@ const clientSchema = new Schema(
     },
     agent_code: String,
     ref_agent_code: String,
+    fcm_token: {
+      type: String,
+      required: false,
+      default: null,
+    },
     commission_balance: {
       type: Number,
       default: 0,

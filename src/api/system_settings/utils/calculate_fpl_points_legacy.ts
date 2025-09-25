@@ -301,14 +301,21 @@ export default async (
 
       // Calculate points for captain and vice captain
       if (player.is_captain) {
-        if (player.minutesplayed > 0) {
+        if (player.stat.minutesplayed > 0) {
           player.final_fantasy_point = player.fantasy_point * 2;
+        } else {
+          player.final_fantasy_point = player.fantasy_point;
         }
       } else if (player.is_vice_captain) {
         // Vice-captain only gets double points if captain didn't play (0 minutes)
-        if (captainData.player && captainData.player.minutesplayed <= 0 && player.minutesplayed > 0) {
+        if (captainData.player && captainData.player.stat && captainData.player.stat.minutesplayed <= 0 && player.stat.minutesplayed > 0) {
           player.final_fantasy_point = player.fantasy_point * 2;
+        } else {
+          player.final_fantasy_point = player.fantasy_point;
         }
+      } else {
+        // Regular players get their base points
+        player.final_fantasy_point = player.fantasy_point;
       }
     } else {
       // Player has no stats (didn't play or bench player)

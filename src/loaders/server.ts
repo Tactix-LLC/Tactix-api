@@ -76,6 +76,7 @@ import adPackageRouter from "../api/ad_packages/router";
 import packagesRouter from "../api/packages/router";
 import systemSettingsRouter from "../api/system_settings/router";
 import groupsRouter from "../api/groups/router";
+import notificationRouter from "../api/notification/router";
 
 // Use Routers
 app.use("/api/v1/admins", adminRouter);
@@ -115,6 +116,7 @@ app.use("/api/v1/adpackages", adPackageRouter);
 app.use("/api/v1/packages", packagesRouter);
 app.use("/api/v1/system-settings", systemSettingsRouter);
 app.use("/api/v1/groups", groupsRouter);
+app.use("/api/v1/notification", notificationRouter);
 
 //Healthcheck endpoint
 app.get("/healthcheck", (req, res, next) => {
