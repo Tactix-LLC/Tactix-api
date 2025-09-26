@@ -203,7 +203,7 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
         prevOtp.first_name[0].toUpperCase() + prevOtp.first_name.slice(1),
       last_name:
         prevOtp.last_name[0].toUpperCase() + prevOtp.last_name.slice(1),
-      phone_number: prevOtp.phone_number,
+      phone_number: (prevOtp.phone_number && prevOtp.phone_number.trim() !== '') ? prevOtp.phone_number : undefined,
       email: prevOtp.email,
       birth_date: prevOtp.birth_date ? new Date(prevOtp.birth_date) : undefined,
       pin: prevOtp.pin,
