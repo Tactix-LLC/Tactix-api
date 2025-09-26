@@ -80,7 +80,15 @@ export class FirebaseService {
             aps: {
               sound: 'default',
               badge: 1,
+              alert: {
+                title: title,
+                body: body,
+              },
             },
+          },
+          headers: {
+            'apns-priority': '10',
+            'apns-expiration': '0',
           },
         },
       };
@@ -133,7 +141,15 @@ export class FirebaseService {
             aps: {
               sound: 'default',
               badge: 1,
+              alert: {
+                title: title,
+                body: body,
+              },
             },
+          },
+          headers: {
+            'apns-priority': '10',
+            'apns-expiration': '0',
           },
         },
       };
@@ -196,7 +212,15 @@ export class FirebaseService {
             aps: {
               sound: 'default',
               badge: 1,
+              alert: {
+                title: title,
+                body: body,
+              },
             },
+          },
+          headers: {
+            'apns-priority': '10',
+            'apns-expiration': '0',
           },
         },
       };
@@ -219,15 +243,43 @@ export class FirebaseService {
     }
 
     try {
-      // Send a test message to validate the token
+      // Basic token format validation
+      if (!token || typeof token !== 'string' || token.length < 10) {
+        console.log(`❌ Invalid FCM token format: ${token}`);
+        return false;
+      }
+
+      // For iOS, we'll do a lighter validation since APNs might not be configured
+      // Try to send a minimal test message
       await admin.messaging().send({
         token,
         data: { test: 'validation' },
+        apns: {
+          payload: {
+            aps: {
+              'content-available': 1, // Silent notification
+            },
+          },
+        },
+        android: {
+          data: { test: 'validation' },
+        },
       });
       return true;
-    } catch (error) {
-      console.log(`❌ Invalid FCM token: ${token}`);
-      return false;
+    } catch (error: any) {
+      console.log(`❌ FCM token validation failed: ${error.message}`);
+      
+      // For iOS, if it's an APNs error, we'll still accept the token
+      // as the issue might be APNs configuration, not the token itself
+      if (error.code === 'messaging/invalid-registration-token' || 
+          error.code === 'messaging/registration-token-not-registered') {
+        return false;
+      }
+      
+      // For other errors (like APNs configuration), we'll accept the token
+      // and let the actual notification sending handle the error
+      console.log(`⚠️ Accepting token despite validation error (likely APNs config issue): ${token}`);
+      return true;
     }
   }
 }
