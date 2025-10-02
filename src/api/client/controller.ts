@@ -162,7 +162,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
-        from: configs.email.auth.user,
+        from: configs.email.from,
         to: email,
         subject: "Reset Your Password - Tactix Football Fantasy",
         html: generatePasswordResetEmailTemplate(otp, client.first_name),
@@ -180,7 +180,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
-        from: configs.email.auth.user,
+        from: configs.email.from,
         to: email,
         subject: "Reset Your Password - Tactix Football Fantasy",
         html: generatePasswordResetEmailTemplate(otp, client.first_name),

@@ -119,7 +119,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
-        from: configs.email.auth.user,
+        from: configs.email.from,
         to: data.email,
         subject: "Verify Your Email - Tactix Football Fantasy",
         html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
@@ -138,7 +138,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
-        from: configs.email.auth.user,
+        from: configs.email.from,
         to: data.email,
         subject: "Verify Your Email - Tactix Football Fantasy",
         html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
