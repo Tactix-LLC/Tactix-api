@@ -10,6 +10,7 @@ import configs from "../../../configs";
 import axios from "axios";
 import nodemailer from "nodemailer";
 import { generateOTPEmailTemplate } from "../../../utils/email_templates";
+import { sendEmail } from "../../../utils/sendgrid_email";
 
 export const sendOtp: RequestHandler = async (req, res, next) => {
   try {
@@ -114,27 +115,22 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     });
 
     // Check the env and send Email
-    if (configs.env === "development") {
-      // Send Email
-      const transporter = nodemailer.createTransport(configs.email as any);
-
-      const mailOptions = {
-        from: configs.email.from,
+    if (process.env.SENDGRID_API_KEY) {
+      // Use SendGrid HTTP API (works better on cloud platforms)
+      await sendEmail({
         to: data.email,
         subject: "Verify Your Email - Tactix Football Fantasy",
         html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
         text: `Your OTP is ${otp}`,
-      };
-
-      await transporter.sendMail(mailOptions);
-      res.status(200).json({
-        status: "SUCCESS",
-        message: "A verification code is sent to your email.",
-        otp,
       });
 
+      res.status(200).json({
+        status: "SUCCESS",
+        message: "A verification code is sent to your email.",
+        ...(configs.env === "development" && { otp }),
+      });
     } else {
-      // Send Email
+      // Fallback to SMTP (for local development)
       const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
@@ -149,6 +145,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       res.status(200).json({
         status: "SUCCESS",
         message: "A verification code is sent to your email.",
+        ...(configs.env === "development" && { otp }),
       });
     }
   } catch (error) {
