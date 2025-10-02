@@ -159,15 +159,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
     // Check the env and send Email
     if (configs.env === "development") {
       // Send Email
-      const transporter = nodemailer.createTransport({
-        host: configs.email.host,
-        port: configs.email.port,
-        secure: configs.email.secure,
-        auth: {
-          user: configs.email.auth.user,
-          pass: configs.email.auth.pass,
-        },
-      });
+      const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
         from: configs.email.auth.user,
@@ -185,15 +177,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       });
     } else {
       // Send via Email
-      const transporter = nodemailer.createTransport({
-        host: configs.email.host,
-        port: configs.email.port,
-        secure: configs.email.secure,
-        auth: {
-          user: configs.email.auth.user,
-          pass: configs.email.auth.pass,
-        },
-      });
+      const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
         from: configs.email.auth.user,

@@ -49,13 +49,16 @@ export default {
     secret_key: chapa_key,
   },
   email: {
-    host: "smtp.gmail.com", // Replace with your SMTP host
-    port: 465, // SMTP port
-    secure: true, // Use true for 465, false for other ports
+    host: "smtp.gmail.com",
+    port: 587, // Port 587 is more reliable on cloud platforms
+    secure: false, // false for port 587 (uses STARTTLS)
     auth: {
-      user: process.env.SMTP_USER, // Your email address
-      pass: process.env.SMTP_PASS,    // Your email password
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   },
   google: {
     client_id: "545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com", // Android
