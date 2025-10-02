@@ -49,13 +49,14 @@ export default {
     secret_key: chapa_key,
   },
   email: {
-    host: "smtp.gmail.com",
-    port: 587, // Port 587 is more reliable on cloud platforms
+    host: process.env.SMTP_HOST || "smtp.sendgrid.net",
+    port: parseInt(process.env.SMTP_PORT || "587"),
     secure: false, // false for port 587 (uses STARTTLS)
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    from: process.env.SMTP_FROM || "support@jointactix.app", // Sender email
     connectionTimeout: 10000, // 10 seconds
     greetingTimeout: 10000,
     socketTimeout: 10000,
