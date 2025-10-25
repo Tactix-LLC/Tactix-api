@@ -51,7 +51,7 @@ export default class GameWeekTeamDAL {
   ): Promise<Array<IGameWeekTeamDoc | null>> {
     try {
       const apiFeatures = new APIFeatures<IGameWeekTeamDoc>(
-        GameWeekTeam.find(),
+        GameWeekTeam.find().populate('client_id', 'first_name last_name phone_number email'),
         query
       )
         .sort()
@@ -181,7 +181,7 @@ export default class GameWeekTeamDAL {
   ): Promise<IGameWeekTeamDoc[]> {
     try {
       const apiFeatures = new APIFeatures<IGameWeekTeamDoc>(
-        GameWeekTeam.find({ game_week_id }),
+        GameWeekTeam.find({ game_week_id }).populate('client_id', 'first_name last_name phone_number email'),
         query
       )
         .filter()

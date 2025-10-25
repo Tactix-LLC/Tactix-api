@@ -414,11 +414,24 @@ export const getAllGameWeeks: RequestHandler = async (req, res, next) => {
   try {
     const gameWeeks = await GameWeek.getAllGameWeeks(req.query);
 
+    // Add participants_count to each game week
+    const gameWeeksWithCount = await Promise.all(
+      gameWeeks.map(async (gameWeek) => {
+        const participants_count = await GameWeekTeam.countClientsInGameWeek(
+          gameWeek._id
+        );
+        return {
+          ...gameWeek.toObject(),
+          participants_count,
+        };
+      })
+    );
+
     // Response
     res.status(200).json({
       status: "SUCCESS",
-      results: gameWeeks.length,
-      data: { gameWeeks },
+      results: gameWeeksWithCount.length,
+      data: { gameWeeks: gameWeeksWithCount },
     });
   } catch (error) {
     next(error);
@@ -998,9 +1011,10 @@ export const triggerAutoJoin: RequestHandler = async (req, res, next) => {
     console.log('🚀 [triggerAutoJoin] Manual trigger for game week:', req.params.id);
     
     const gameWeekId = req.params.id;
+    const adminId = req.body.admin?._id || req.body.admin?.id; // Get admin ID from authenticated request
     
-    // Execute auto-join
-    const results = await AutoJoinJobManager.executeAutoJoin(gameWeekId);
+    // Execute auto-join with manual trigger type and admin ID
+    const results = await AutoJoinJobManager.executeAutoJoin(gameWeekId, "manual", adminId);
     
     console.log('✅ [triggerAutoJoin] Results:', results);
     
