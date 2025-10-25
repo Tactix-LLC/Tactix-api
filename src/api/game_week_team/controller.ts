@@ -326,6 +326,25 @@ export const getGameWeekTeam: RequestHandler = async (req, res, next) => {
 //get a game week teams
 export const getAllGameWeekTeams: RequestHandler = async (req, res, next) => {
   try {
+    // If game_week_id is provided in query, use getByGameWeekId which has proper populate
+    if (req.query.game_week_id) {
+      const gameWeekTeam = await GameWeekTeam.getByGameWeekId(
+        req.query.game_week_id as string,
+        req.query
+      );
+
+      if (gameWeekTeam.length === 0) {
+        return next(new AppError("No game week team found", 404));
+      }
+
+      return res.status(200).json({
+        status: "SUCCESS",
+        results: gameWeekTeam.length,
+        data: { gameWeekTeam },
+      });
+    }
+
+    // Otherwise use the general getAllGameWeekTeams
     const gameWeekTeam = await GameWeekTeam.getAllGameWeekTeams(req.query);
 
     if (gameWeekTeam.length === 0) {
