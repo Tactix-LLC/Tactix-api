@@ -1,7 +1,11 @@
 import { config } from "dotenv";
 import path from "path";
 
-config({ path: path.join(process.cwd(), "./src/config.env"), debug: true });
+// Load environment variables safely in different environments
+// 1) Try root .env (Render/production best practice)
+config({ path: path.join(process.cwd(), "./.env") });
+// 2) Try src/config.env for local dev if present
+config({ path: path.join(process.cwd(), "./src/config.env") });
 
 // Check the env
 let api_url = process.env.API_URL_DEV_LOCAL;
