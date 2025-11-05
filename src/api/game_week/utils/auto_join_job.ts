@@ -152,8 +152,9 @@ export class AutoJoinJobManager {
       }
 
       // Get all active clients who haven't joined this game week
-      const clients = await Client.getAllClients();
-      console.log(`👥 Found ${clients.length} active clients`);
+      // Using getAllClientsWithoutPagination to ensure all users are processed (scalable solution)
+      const clients = await Client.getAllClientsWithoutPagination();
+      console.log(`👥 Found ${clients.length} active clients (processing all)`);
 
       for (const client of clients) {
         try {

@@ -270,6 +270,21 @@ export default class Client {
     }
   }
 
+  // Get all clients without pagination (for internal processes like auto-join)
+  // This method is scalable and will return all clients regardless of count
+  static async getAllClientsWithoutPagination(filter?: any): Promise<IClientDoc[]> {
+    try {
+      const query = filter ? ClientModel.find(filter) : ClientModel.find();
+      const clients = await query
+        .select("-__v")
+        .sort("-createdAt")
+        .lean();
+      return clients;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Count all clients
   static async countAllClients(): Promise<number> {
     try {

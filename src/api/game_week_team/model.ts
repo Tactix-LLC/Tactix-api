@@ -186,6 +186,9 @@ const gameWeekTeamSchema = new Schema(
   }
 );
 
+// Unique index: Prevent duplicate joins (one user per game week)
+gameWeekTeamSchema.index({ client_id: 1, game_week_id: 1 }, { unique: true });
+
 // Pre find hook
 gameWeekTeamSchema.pre(/^find/, function (this: IGameWeekTeamDoc, next) {
   this.populate({
