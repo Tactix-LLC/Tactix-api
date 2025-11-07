@@ -12,7 +12,7 @@ const PrivacySchema: Schema = new Schema(
     content: {
       type: String,
       required: [true, "content is required"],
-      maxlength: [5000, "content can not exceed 100 characters"],
+      maxlength: [10000, "content can not exceed 10000 characters"],
       minlength: [1, "content can not be less than 1 character"],
     },
     is_published: {

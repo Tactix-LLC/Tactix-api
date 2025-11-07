@@ -7,7 +7,7 @@ const aboutUsSchema: Schema = new Schema(
       type: String,
       required: [true, "Content is required"],
       minlength: [10, "Content must have at least 10 characters"],
-      maxlength: [5000, "Content must have less than 5000 characters"],
+      maxlength: [10000, "Content must have less than 10000 characters"],
     },
     is_active: {
       type: Boolean,
@@ -23,7 +23,7 @@ const aboutUsSchema: Schema = new Schema(
       type: String,
       required: [true, "Version content is required"],
       minlength: [3, "Version content must have at least 3 characters"],
-      maxlength: [1000, "Version content can not contain 1000 characters"],
+      maxlength: [2000, "Version content can not contain more than 2000 characters"],
     },
   },
   {
