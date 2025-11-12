@@ -256,21 +256,26 @@ export default class GameWeekDAL {
     monthAndYear: string
   ): Promise<IGameWeekDoc[]> {
     try {
-      const givenMonth = new Date(monthAndYear);
-      const year = givenMonth.getFullYear();
-      const month = givenMonth.getMonth();
-      const nextMonth = new Date(year, month + 1, 1);
-      const endDateOfGivenMonth = new Date(
-        nextMonth.getTime() - 24 * 60 * 60 * 1000
-      );
+      // Parse the YYYY-MM format properly
+      const [yearStr, monthStr] = monthAndYear.split('-');
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr) - 1; // JavaScript months are 0-indexed
+      
+      // Start of the given month
+      const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+      
+      // Start of the next month
+      const startOfNextMonth = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0));
+      
       const gameWeeks = await GameWeekModel.find({
         $and: [
           {
-            purchase_deadline: { $gte: givenMonth, $lt: nextMonth },
+            purchase_deadline: { $gte: startOfMonth, $lt: startOfNextMonth },
           },
           { is_done: true },
         ],
       });
+      
       return gameWeeks.map((doc) => doc._id);
     } catch (error) {
       throw error;

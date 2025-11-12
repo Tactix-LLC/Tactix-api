@@ -34,6 +34,9 @@ import {
   triggerAutoJoin,
   getAutoJoinStatus,
   rescheduleAutoJoinJobs,
+  getCompletionJobStatus,
+  getAllCompletionJobs,
+  cleanupCompletionJobs,
 } from "./controller";
 import protect from "../../utils/protect";
 import auth from "../../utils/auth";
@@ -160,6 +163,28 @@ router.post(
   protect,
   auth("Super-admin"),
   rescheduleAutoJoinJobs
+);
+
+// Completion job routes
+router.get(
+  "/:id/completion-status",
+  protect,
+  auth("Super-admin"),
+  getCompletionJobStatus
+);
+
+router.get(
+  "/completion-jobs/all",
+  protect,
+  auth("Super-admin"),
+  getAllCompletionJobs
+);
+
+router.post(
+  "/completion-jobs/cleanup",
+  protect,
+  auth("Super-admin"),
+  cleanupCompletionJobs
 );
 
 // Export router

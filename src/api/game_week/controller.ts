@@ -20,6 +20,7 @@ import calculate_points from "./utils/calculate_points";
 import live_rank from "../game_week_team/utils/live_rank";
 import AutoJoinJobManager from "./utils/auto_join_job";
 import NotificationJobManager from "./utils/notification_job";
+import GameWeekCompletionJobManager from "./utils/gameweek_completion_job";
 
 // Create game weeks
 export const createGameWeek: RequestHandler = async (req, res, next) => {
@@ -762,81 +763,41 @@ export const updateToDone: RequestHandler = async (req, res, next) => {
     const gameWeek = await GameWeek.getGameWeekById(req.params.id);
     if (!gameWeek) return next(new AppError("Game week does not exists", 404));
 
-    // Check Date
-    // if (new Date(gameWeek.last_match_end_date).getTime() > Date.now()) {
-    //   return next(
-    //     new AppError(
-    //       "The current game week is not done yet. Please create a new game week once the current game week ends",
-    //       400
-    //     )
-    //   );
-    // }
-
-    // Get the number of teams who joined the gameweek
-    const count = await GameWeekTeam.countClientsInGameWeek(gameWeek._id);
-
-    // Check if there are team created under this game week
-    if (count > 0) {
-      // Page
-      let page = Math.floor(count / 10);
-      if (count % 10 !== 0) {
-        page += 1;
-      }
-
-      // Player stats
-      const playerStats = await GameWeek.getPlayerStat(gameWeek._id);
-      if (!playerStats)
-        return next(new AppError("Can not fetch the player stat data", 404));
-
-      // Loop on the whole teams that joined this specific game week and update the points
-      for (let i = 1; i <= page; i++) {
-        const gameWeekTeams = await GameWeekTeam.getGameweekTeamsForPoint(
-          gameWeek._id,
-          i
-        );
-        gameWeekTeams.forEach(async (gameWeekTeam) => {
-          // Calculate player points
-          const playersPoints = await calculate_fantasy_points(
-            gameWeekTeam.players,
-            JSON.parse(playerStats)
-          );
-
-          const { totalPoint, players } = await calculate_points(playersPoints);
-
-          // Update the team with the latest points
-          const updatedGameWeekTeam =
-            await GameWeekTeam.updateTotalGameWeekPointAndPlayers({
-              id: gameWeekTeam._id,
-              total_point: totalPoint,
-              players: players,
-            });
-
-          // Calculate cumulative total fantasy points across all completed game weeks
-          const cumulativeTotal = await calculateCumulativeTeamPoints(gameWeekTeam.team_id);
-
-          // Update players on team with cumulative total
-          const updatedTeam = await TeamDAL.updateFantasyPointAndPlayers({
-            id: gameWeekTeam.team_id,
-            total_fantasy_point: cumulativeTotal,
-          });
-        });
-      }
+    // Check if player stats are available
+    const playerStats = await GameWeek.getPlayerStat(gameWeek._id);
+    if (!playerStats && is_done === true) {
+      return next(new AppError("Cannot mark game week as done. Player stats not fetched yet.", 400));
     }
 
-    // Update
-    const updatedGameweek = await GameWeek.updateToDone({
-      id: req.params.id,
-      is_done,
-    });
+    // If marking as done, start the background job
+    if (is_done === true) {
+      // Start the completion job in the background
+      await GameWeekCompletionJobManager.startCompletionJob(req.params.id);
 
-    // Respond
-    res.status(200).json({
-      status: "SUCCESS",
-      message: "Game week successfully updated",
-      data: {
-        gameWeek: updatedGameweek,
-      },
-    });
+      // Respond immediately
+      res.status(202).json({
+        status: "SUCCESS",
+        message: "Game week completion job started. Points calculation is running in the background.",
+        data: {
+          gameWeekId: req.params.id,
+          jobStatus: GameWeekCompletionJobManager.getJobStatus(req.params.id),
+        },
+      });
+    } else {
+      // If marking as not done (re-opening), do it synchronously
+      const updatedGameweek = await GameWeek.updateToDone({
+        id: req.params.id,
+        is_done: false,
+      });
+
+      res.status(200).json({
+        status: "SUCCESS",
+        message: "Game week successfully reopened",
+        data: {
+          gameWeek: updatedGameweek,
+        },
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -1079,6 +1040,59 @@ export const rescheduleAutoJoinJobs: RequestHandler = async (req, res, next) => 
     });
   } catch (error) {
     console.error('❌ [rescheduleAutoJoinJobs] Error:', error);
+    next(error);
+  }
+};
+
+// Get game week completion job status
+export const getCompletionJobStatus: RequestHandler = async (req, res, next) => {
+  try {
+    const gameWeekId = req.params.id;
+    const jobStatus = GameWeekCompletionJobManager.getJobStatus(gameWeekId);
+
+    if (!jobStatus) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "No completion job found for this game week",
+        data: null,
+      });
+    }
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Job status retrieved successfully",
+      data: { jobStatus },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all completion jobs
+export const getAllCompletionJobs: RequestHandler = async (req, res, next) => {
+  try {
+    const jobs = GameWeekCompletionJobManager.getAllJobs();
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "All jobs retrieved successfully",
+      data: { jobs },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Cleanup old completion jobs
+export const cleanupCompletionJobs: RequestHandler = async (req, res, next) => {
+  try {
+    GameWeekCompletionJobManager.cleanupOldJobs();
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Old jobs cleaned up successfully",
+    });
+  } catch (error) {
     next(error);
   }
 };
