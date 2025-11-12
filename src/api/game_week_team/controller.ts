@@ -856,25 +856,7 @@ export const getMonthlyLeaderBoard: RequestHandler = async (req, res, next) => {
   try {
     // Month
     const month = req.query.month as string;
-    // // Convert given month to date
-    // const monthOfLeaderboard = new Date(month).getMonth() + 1;
-
-    // // Get currently month
-    // const today = new Date();
-    // const currentMonth = today.getMonth() + 1;
-
-    // // Check requested month for a leaderboard is not same as the current month
-    // if (
-    //   currentMonth === monthOfLeaderboard ||
-    //   monthOfLeaderboard > currentMonth
-    // ) {
-    //   return res.status(200).json({
-    //     status: "SUCCESS",
-    //     results: 0,
-    //     data: { monthlyLeaderbaord: [] },
-    //   });
-    // }
-
+    
     // Find monthly leaderboard
     const monthlyLeaderbaord = await GameWeekTeam.getMonthlyLeaderbaord(
       month,

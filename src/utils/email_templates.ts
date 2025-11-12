@@ -209,13 +209,12 @@ export const generateOTPEmailTemplate = (otp: string, firstName: string, type: '
             <p>If you didn't ${isVerification ? 'create an account' : 'request this reset'}, please ignore this email.</p>
             
             <div class="social-links">
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
-                <a href="#">Support</a>
+                <a href="https://jointactix.app/privacy-policy">Privacy Policy</a>
+                <a href="mailto:support@jointactix.app">Support</a>
             </div>
             
             <p style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
-                © 2024 Tactix Football Fantasy. All rights reserved.
+                © 2025 Tactix Football Fantasy. All rights reserved.
             </p>
         </div>
     </div>
