@@ -105,7 +105,9 @@ export const joinGroup: RequestHandler = async (req, res, next) => {
       return next(new AppError("User not authenticated", 401));
     }
 
-    const { group_id, join_code } = req.value as GroupRequest.IJoinGroup;
+    console.log('Join group request body:', req.body);
+    const { group_id, join_code } = req.body;
+    console.log('Extracted values - group_id:', group_id, 'join_code:', join_code);
     
     let group;
     if (group_id) {
