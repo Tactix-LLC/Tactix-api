@@ -23,6 +23,7 @@ import {
 } from "./validation";
 import protect from "../../utils/protect";
 import auth from "../../utils/auth";
+import handleValidation from "../../utils/handle_validation";
 
 const router = express.Router();
 
@@ -40,9 +41,9 @@ router.put("/:id", updateGroupValidation, updateGroup);
 router.delete("/:id", groupIdValidation, deleteGroup);
 
 // Group membership operations
-router.post("/join", joinGroupValidation, joinGroup);
-router.post("/:id/leave", groupIdValidation, leaveGroup);
-router.post("/:id/remove-member", removeMemberValidation, removeMember);
+router.post("/join", joinGroupValidation, handleValidation, joinGroup);
+router.post("/:id/leave", groupIdValidation, handleValidation, leaveGroup);
+router.post("/:id/remove-member", removeMemberValidation, handleValidation, removeMember);
 router.post("/:id/members", groupIdValidation, addMembersToGroup);
 
 // Group leaderboard

@@ -1,4 +1,4 @@
-import { query } from "express";
+import { query } from "express-validator";
 import APIFeatures from "../../utils/api_features";
 import ICommissionDoc from "./dto";
 import Commission from "./model";

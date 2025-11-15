@@ -13,6 +13,9 @@ export default class FantasyRoaster {
     try {
       const fantasyRoaster = await FantasyRoasterModel.create({
         season_name: data.season_name,
+        season_id: data.season_id,
+        competition_id: data.competition_id,
+        competition_cid: data.competition_cid,
         players: data.players,
       });
       return fantasyRoaster;
@@ -305,6 +308,33 @@ export default class FantasyRoaster {
   static async deleteCachedRoaster(season_name: string) {
     try {
       await init.redis_client.del(`otp_${season_name}`);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get single roaster by season and competition
+  static async getSingleRoasterBySeasonAndCompetition(season_id: string, competition_id: string): Promise<IFantasyRoasterDoc | null> {
+    try {
+      const roaster = await FantasyRoasterModel.findOne({
+        season_id,
+        competition_id,
+      });
+      return roaster;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update roaster players
+  static async updateRoasterPlayers(roasterId: string, players: IPlayer[]): Promise<IFantasyRoasterDoc | null> {
+    try {
+      const updatedRoaster = await FantasyRoasterModel.findByIdAndUpdate(
+        roasterId,
+        { players },
+        { new: true }
+      );
+      return updatedRoaster;
     } catch (error) {
       throw error;
     }

@@ -5,14 +5,48 @@ import generateToken from "../../../utils/generate_token";
 import Client from "../dal";
 import configs from "../../../configs";
 
-// Google Sign-In verification
+// Generate random password with letters and numbers
+const generateRandomPassword = (length: number = 8): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+// Google Sign-In verification using Google Auth Library
 const verifyGoogleToken = async (idToken: string) => {
   try {
-    const response = await axios.get(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
-    );
-    return response.data;
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client();
+    
+    // Verify the token
+    const ticket = await client.verifyIdToken({
+      idToken: idToken,
+      audience: [
+        '545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com', // Android
+        '545588730676-cubab3ceuge681a5s1stjl30g8fd1lbt.apps.googleusercontent.com', // iOS
+        '545588730676-otk6a1qemi8u1qet3btkfm98d0sncsi0.apps.googleusercontent.com'  // Web
+      ]
+    });
+    
+    const payload = ticket.getPayload();
+    if (!payload) {
+      throw new AppError("Invalid Google token payload", 401);
+    }
+
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      email_verified: payload.email_verified,
+      given_name: payload.given_name,
+      family_name: payload.family_name,
+      name: payload.name,
+      picture: payload.picture
+    };
   } catch (error) {
+    console.error('Google token verification error:', error);
     throw new AppError("Invalid Google token", 401);
   }
 };
@@ -29,20 +63,48 @@ const verifyFacebookToken = async (accessToken: string) => {
   }
 };
 
-// Apple Sign-In verification (simplified - in production, use proper JWT verification)
+// Apple Sign-In verification with proper JWT verification
 const verifyAppleToken = async (identityToken: string) => {
   try {
-    // In production, you should verify the JWT signature with Apple's public keys
-    // For now, we'll decode the token (this is not secure for production)
-    const payload = JSON.parse(
-      Buffer.from(identityToken.split('.')[1], 'base64').toString()
-    );
+    const jwt = require('jsonwebtoken');
+    
+    // First, decode without verification to get the header
+    const decodedHeader = jwt.decode(identityToken, { complete: true });
+    if (!decodedHeader) {
+      throw new AppError("Invalid Apple token format", 401);
+    }
+
+    // Get Apple's public keys
+    const response = await axios.get('https://appleid.apple.com/auth/keys');
+    const keys = response.data.keys;
+    
+    // Find the correct key based on the token's kid (key ID)
+    const kid = decodedHeader.header.kid;
+    const key = keys.find((k: any) => k.kid === kid);
+    
+    if (!key) {
+      throw new AppError("Apple public key not found", 401);
+    }
+
+    // Convert JWK to PEM format for verification
+    const jwkToPem = require('jwk-to-pem');
+    const publicKey = jwkToPem(key);
+
+    // Verify the token
+    const payload = jwt.verify(identityToken, publicKey, {
+      algorithms: ['RS256'],
+      audience: configs.apple.clientId || 'app.jointactix.fantasy', // Your app's bundle ID
+      issuer: 'https://appleid.apple.com'
+    });
+
     return {
       sub: payload.sub,
       email: payload.email,
       name: payload.name || 'Apple User',
+      email_verified: payload.email_verified
     };
   } catch (error) {
+    console.error('Apple token verification error:', error);
     throw new AppError("Invalid Apple token", 401);
   }
 };
@@ -92,22 +154,23 @@ export const socialLogin: RequestHandler = async (req, res, next) => {
 
     // Check if user exists by email
     console.log('Checking if user exists by email:', email);
-    let client = await Client.getClienyByEmail(email);
+    let client = await Client.getClientByEmail(email);
     console.log('Existing client found:', !!client);
 
     if (!client) {
       // Create new user
       console.log('Creating new user...');
+      const randomPassword = generateRandomPassword(8); // Generate random 8-character password
       const clientData = {
         first_name: first_name || verifiedData.given_name || verifiedData.name?.split(' ')[0] || 'User',
         last_name: last_name || verifiedData.family_name || verifiedData.name?.split(' ').slice(1).join(' ') || '',
         email: email || verifiedData.email,
-        phone_number: '', // Social login users might not have phone
+        phone_number: undefined, // Social login users don't need phone number
         birth_date: undefined,
-        pin: '0000', // Default pin for social login users
-        pin_confirm: '0000',
+        pin: randomPassword,
+        pin_confirm: randomPassword,
         accept: true,
-        agent_code: '',
+        agent_code: '', // Empty string instead of undefined
         ref_agent_code: '',
         profile_picture: profile_picture || verifiedData.picture?.data?.url || verifiedData.picture,
         social_provider: provider,

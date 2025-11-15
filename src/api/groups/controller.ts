@@ -105,7 +105,9 @@ export const joinGroup: RequestHandler = async (req, res, next) => {
       return next(new AppError("User not authenticated", 401));
     }
 
-    const { group_id, join_code } = req.value as GroupRequest.IJoinGroup;
+    console.log('Join group request body:', req.body);
+    const { group_id, join_code } = req.body;
+    console.log('Extracted values - group_id:', group_id, 'join_code:', join_code);
     
     let group;
     if (group_id) {
@@ -166,7 +168,7 @@ export const removeMember: RequestHandler = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    const { member_id } = req.value as GroupRequest.IRemoveMember;
+    const { member_id } = req.body as GroupRequest.IRemoveMember;
     const group = await Group.removeMember(id, member_id, userId);
     
     res.status(200).json({
@@ -191,7 +193,9 @@ export const updateGroup: RequestHandler = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    const group = await Group.updateGroup(id, req.value as GroupRequest.IUpdateGroup, userId);
+    // Use req.body directly since we're not using Joi validation for this endpoint
+    const updateData = req.body as GroupRequest.IUpdateGroup;
+    const group = await Group.updateGroup(id, updateData, userId);
     
     res.status(200).json({
       status: "SUCCESS",
@@ -230,14 +234,22 @@ export const deleteGroup: RequestHandler = async (req, res, next) => {
 export const getGroupLeaderboard: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { gameweek_id, month } = req.query;
+    const { gameweek_id, month, page = "1", limit = "20" } = req.query;
+    const currentUserId = (req.user as IClientDoc)?._id?.toString();
     
     const group = await Group.getGroupById(id);
     if (!group) {
       return next(new AppError("Group not found", 404));
     }
 
-    const leaderboard = await Group.getGroupLeaderboard(id, gameweek_id as string, month as string);
+    // Get leaderboard data with pagination
+    const leaderboardData = await Group.getGroupLeaderboard(
+      id, 
+      gameweek_id as string, 
+      month as string,
+      parseInt(page as string),
+      parseInt(limit as string)
+    );
     
     // Determine time period based on parameters
     let timePeriod = "yearly"; // default
@@ -247,18 +259,24 @@ export const getGroupLeaderboard: RequestHandler = async (req, res, next) => {
       timePeriod = "monthly";
     }
 
+    // Get current user's rank
+    const myRank = await Group.getUserRankInGroup(id, currentUserId, gameweek_id as string, month as string);
+
     res.status(200).json({
       status: "SUCCESS",
       message: "Group leaderboard retrieved successfully",
       data: {
         leaderboard: {
           group: group,
-          leaderboard: leaderboard,
-          my_rank: null, // Will be implemented when user ranking is available
+          leaderboard: leaderboardData.leaderboard,
+          my_rank: myRank,
           game_week: gameweek_id,
           month: month,
-          has_more: false,
+          has_more: leaderboardData.hasMore,
           time_period: timePeriod,
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+          total: leaderboardData.total,
         },
       },
     });

@@ -1,7 +1,11 @@
 import { config } from "dotenv";
 import path from "path";
 
-config({ path: path.join(process.cwd(), "./src/config.env"), debug: true });
+// Load environment variables safely in different environments
+// 1) Try root .env (Render/production best practice)
+config({ path: path.join(process.cwd(), "./.env") });
+// 2) Try src/config.env for local dev if present
+config({ path: path.join(process.cwd(), "./src/config.env") });
 
 // Check the env
 let api_url = process.env.API_URL_DEV_LOCAL;
@@ -49,17 +53,30 @@ export default {
     secret_key: chapa_key,
   },
   email: {
-    host: "smtp.gmail.com", // Replace with your SMTP host
-    port: 465, // SMTP port
-    secure: true, // Use true for 465, false for other ports
+    host: process.env.SMTP_HOST || "smtp.sendgrid.net",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: false, // false for port 587 (uses STARTTLS)
     auth: {
-      user: process.env.SMTP_USER, // Your email address
-      pass: process.env.SMTP_PASS,    // Your email password
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
+    from: process.env.SMTP_FROM || "support@jointactix.app", // Sender email
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   },
   google: {
     client_id: "545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com", // Android
     ios_client_id: "545588730676-cubab3ceuge681a5s1stjl30g8fd1lbt.apps.googleusercontent.com", // iOS
+  },
+  apple: {
+    clientId: "app.jointactix.fantasy", // Your app's bundle ID
+  },
+  firebase: {
+    projectId: "tactix-5f3c2",
+    projectNumber: "545588730676",
+    webApiKey: "AIzaSyCG5iWDEEd_irGZfaOphi_eLi6asysPUrg",
+    serviceAccountKey: process.env.FIREBASE_SERVICE_ACCOUNT_KEY, // JSON string or path to file
   },
   api_url,
 };

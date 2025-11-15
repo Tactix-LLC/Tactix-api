@@ -14,7 +14,7 @@ export default class Client {
   // Sign up a client after OTP verification
   static async signUp(data: ClientRequest.ISignup): Promise<IClientDoc> {
     try {
-      const client = await ClientModel.create({
+      const clientData: any = {
         first_name: data.first_name,
         last_name: data.last_name,
         phone_number: data.phone_number,
@@ -23,12 +23,32 @@ export default class Client {
         pin: data.pin,
         pin_confirm: data.pin_confirm,
         accept: data.accept,
-        agent_code: data.agent_code,
-        ref_agent_code: data.ref_agent_code,
         social_provider: data.social_provider,
         social_id: data.social_id,
         profile_picture: data.profile_picture,
-      });
+      };
+      
+      // Generate agent code if not provided
+      if (!data.agent_code || data.agent_code.trim() === '' || data.agent_code === 'undefined') {
+        try {
+          const generateReferralCode = (await import("../../utils/generate_referral_code")).default;
+          const timestamp = Date.now().toString().slice(-6);
+          const randomCode = generateReferralCode().split('-')[1]; // Get the random part
+          clientData.agent_code = `REF-${timestamp}${randomCode.slice(0, 2)}`;
+        } catch (error) {
+          console.error('Error generating agent code:', error);
+          clientData.agent_code = `REF-${Date.now().toString().slice(-6)}`;
+        }
+      } else {
+        clientData.agent_code = data.agent_code;
+      }
+      
+      // Handle ref_agent_code properly
+      if (data.ref_agent_code && data.ref_agent_code.trim() !== '' && data.ref_agent_code !== 'undefined') {
+        clientData.ref_agent_code = data.ref_agent_code;
+      }
+      
+      const client = await ClientModel.create(clientData);
       return client;
     } catch (error) {
       throw error;
@@ -36,7 +56,7 @@ export default class Client {
   }
 
   // Get a client using phone number
-  static async getClienyByPhonenumber(
+  static async getClientByPhonenumber(
     phone_number: string
   ): Promise<IClientDoc | null> {
     try {
@@ -48,8 +68,8 @@ export default class Client {
     }
   }
 
-  // Get a client using phone number
-  static async getClienyByEmail(
+  // Get a client using email
+  static async getClientByEmail(
     email: string
   ): Promise<IClientDoc | null> {
     try {
@@ -244,6 +264,21 @@ export default class Client {
         .project()
         .paginate();
       const clients = await apiFeature.dbQuery;
+      return clients;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get all clients without pagination (for internal processes like auto-join)
+  // This method is scalable and will return all clients regardless of count
+  static async getAllClientsWithoutPagination(filter?: any): Promise<IClientDoc[]> {
+    try {
+      const query = filter ? ClientModel.find(filter) : ClientModel.find();
+      const clients = await query
+        .select("-__v")
+        .sort("-createdAt")
+        .lean();
       return clients;
     } catch (error) {
       throw error;
@@ -446,29 +481,6 @@ export default class Client {
     }
   }
 
-  // Get by phone number
-  static async getClientByPhoneNumber(
-    phone_number: string
-  ): Promise<IClientDoc | null> {
-    try {
-      const client = await ClientModel.findOne({ phone_number });
-      return client;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Get by email
-  static async getClientByEmail(
-    email: string
-  ): Promise<IClientDoc | null> {
-    try {
-      const client = await ClientModel.findOne({ email });
-      return client;
-    } catch (error) {
-      throw error;
-    }
-  }
 
   // Update earned commission of agents
   static async updateEarnedAvailableCommission(data: {

@@ -18,8 +18,19 @@ export default class GameWeekTeamDAL {
       game_week_id: string;
       players: Array<IPlayersData>;
     }
-  ): Promise<IGameWeekTeamDoc> {
+  ): Promise<IGameWeekTeamDoc | null> {
     try {
+      // Check if already exists (defense in depth)
+      const existing = await GameWeekTeam.findOne({
+        client_id: data.client_id,
+        game_week_id: data.game_week_id,
+      });
+      
+      if (existing) {
+        console.log(`⚠️ User ${data.client_id} already joined game week ${data.game_week_id}`);
+        return existing; // Return existing instead of throwing error
+      }
+
       const gameWeekTeam = await GameWeekTeam.create({
         client_id: data.client_id,
         team_id: data.team_id,
@@ -28,7 +39,17 @@ export default class GameWeekTeamDAL {
         game_week_id: data.game_week_id,
       });
       return gameWeekTeam;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle unique index violation (duplicate)
+      if (error.code === 11000 || error.name === 'MongoServerError') {
+        console.log(`⚠️ Duplicate join attempt prevented for user ${data.client_id} in game week ${data.game_week_id}`);
+        // Return existing entry if duplicate
+        const existing = await GameWeekTeam.findOne({
+          client_id: data.client_id,
+          game_week_id: data.game_week_id,
+        });
+        return existing;
+      }
       throw error;
     }
   }
@@ -51,7 +72,7 @@ export default class GameWeekTeamDAL {
   ): Promise<Array<IGameWeekTeamDoc | null>> {
     try {
       const apiFeatures = new APIFeatures<IGameWeekTeamDoc>(
-        GameWeekTeam.find(),
+        GameWeekTeam.find().populate('client_id', 'first_name last_name phone_number email'),
         query
       )
         .sort()
@@ -181,7 +202,7 @@ export default class GameWeekTeamDAL {
   ): Promise<IGameWeekTeamDoc[]> {
     try {
       const apiFeatures = new APIFeatures<IGameWeekTeamDoc>(
-        GameWeekTeam.find({ game_week_id }),
+        GameWeekTeam.find({ game_week_id }).populate('client_id', 'first_name last_name phone_number email'),
         query
       )
         .filter()
@@ -939,6 +960,19 @@ export default class GameWeekTeamDAL {
         },
       ]);
       return phoneNumbers;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get teams that have a specific player
+  static async getTeamsWithPlayer(gameWeekId: string, playerId: string): Promise<IGameWeekTeamDoc[]> {
+    try {
+      const teams = await GameWeekTeam.find({
+        game_week_id: gameWeekId,
+        "players.pid": playerId
+      });
+      return teams;
     } catch (error) {
       throw error;
     }

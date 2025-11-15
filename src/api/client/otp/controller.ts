@@ -9,6 +9,8 @@ import generateToken from "../../../utils/generate_token";
 import configs from "../../../configs";
 import axios from "axios";
 import nodemailer from "nodemailer";
+import { generateOTPEmailTemplate } from "../../../utils/email_templates";
+import { sendEmail } from "../../../utils/sendgrid_email";
 
 export const sendOtp: RequestHandler = async (req, res, next) => {
   try {
@@ -22,7 +24,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     }
 
     // Check if there is a client
-    const clientEmail = await Client.getClienyByEmail(data.email);
+    const clientEmail = await Client.getClientByEmail(data.email);
     if (clientEmail)
       return next(
         new AppError("You already have an account. Please login", 400)
@@ -45,13 +47,13 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       return next(new AppError("Pin and Pin confirm should be similar", 401));
     }
 
-    // Check age (only if birth_date is provided)
-    if (data.birth_date) {
-      const currentYear = new Date(Date.now()).getFullYear();
-      const clientBirthYear = new Date(data.birth_date).getFullYear();
-      const age = currentYear - clientBirthYear;
-      if (age < 18) return next(new AppError("Under age", 403));
-    }
+    // Age validation removed - app now supports all ages
+    // if (data.birth_date) {
+    //   const currentYear = new Date(Date.now()).getFullYear();
+    //   const clientBirthYear = new Date(data.birth_date).getFullYear();
+    //   const age = currentYear - clientBirthYear;
+    //   if (age < 18) return next(new AppError("Under age", 403));
+    // }
 
     // Otp count
     let otp_count: number = 1;
@@ -113,48 +115,29 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
     });
 
     // Check the env and send Email
-    if (configs.env === "development") {
-      // Send Email
-      const transporter = nodemailer.createTransport({
-        host: configs.email.host,
-        port: configs.email.port,
-        secure: configs.email.secure,
-        auth: {
-          user: configs.email.auth.user,
-          pass: configs.email.auth.pass,
-        },
+    if (process.env.SENDGRID_API_KEY) {
+      // Use SendGrid HTTP API (works better on cloud platforms)
+      await sendEmail({
+        to: data.email,
+        subject: "Verify Your Email - Tactix Football Fantasy",
+        html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
+        text: `Your OTP is ${otp}`,
       });
 
-      const mailOptions = {
-        from: configs.email.auth.user,
-        to: data.email,
-        subject: "Your OTP Code",
-        text: `Your OTP is ${otp}`,
-      };
-
-      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
         message: "A verification code is sent to your email.",
-        otp,
+        ...(configs.env === "development" && { otp }),
       });
-
     } else {
-      // Send Email
-      const transporter = nodemailer.createTransport({
-        host: configs.email.host,
-        port: configs.email.port,
-        secure: configs.email.secure,
-        auth: {
-          user: configs.email.auth.user,
-          pass: configs.email.auth.pass,
-        },
-      });
+      // Fallback to SMTP (for local development)
+      const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
-        from: configs.email.auth.user,
+        from: configs.email.from,
         to: data.email,
-        subject: "Your OTP Code",
+        subject: "Verify Your Email - Tactix Football Fantasy",
+        html: generateOTPEmailTemplate(otp, data.first_name, 'verification'),
         text: `Your OTP is ${otp}`,
       };
 
@@ -162,6 +145,7 @@ export const sendOtp: RequestHandler = async (req, res, next) => {
       res.status(200).json({
         status: "SUCCESS",
         message: "A verification code is sent to your email.",
+        ...(configs.env === "development" && { otp }),
       });
     }
   } catch (error) {
@@ -200,7 +184,7 @@ export const verifyOtp: RequestHandler = async (req, res, next) => {
         prevOtp.first_name[0].toUpperCase() + prevOtp.first_name.slice(1),
       last_name:
         prevOtp.last_name[0].toUpperCase() + prevOtp.last_name.slice(1),
-      phone_number: prevOtp.phone_number,
+      phone_number: (prevOtp.phone_number && prevOtp.phone_number.trim() !== '') ? prevOtp.phone_number : undefined,
       email: prevOtp.email,
       birth_date: prevOtp.birth_date ? new Date(prevOtp.birth_date) : undefined,
       pin: prevOtp.pin,

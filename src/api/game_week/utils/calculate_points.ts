@@ -104,14 +104,22 @@ export default (players: IPlayersData[]) => {
     }
 
     // Calculate points for captain and vice captain
-    if (player.is_captain || player.is_vice_captain) {
-      if (player.is_captain && player.minutesplayed > 0) {
+    if (player.is_captain) {
+      if (player.stat && player.stat.minutesplayed > 0) {
         player.final_fantasy_point = player.fantasy_point * 2;
-      } else if (player.is_vice_captain && player.minutesplayed > 0) {
-        if (captainData.player && captainData.player.minutesplayed <= 0) {
-          player.final_fantasy_point = player.fantasy_point * 2;
-        }
+      } else {
+        player.final_fantasy_point = player.fantasy_point;
       }
+    } else if (player.is_vice_captain) {
+      // Vice-captain only gets double points if captain didn't play (0 minutes)
+      if (captainData.player && captainData.player.stat && captainData.player.stat.minutesplayed <= 0 && player.stat && player.stat.minutesplayed > 0) {
+        player.final_fantasy_point = player.fantasy_point * 2;
+      } else {
+        player.final_fantasy_point = player.fantasy_point;
+      }
+    } else {
+      // Regular players get their base points
+      player.final_fantasy_point = player.fantasy_point;
     }
   }
 

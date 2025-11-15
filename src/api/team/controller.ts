@@ -36,6 +36,13 @@ export const createTeam: RequestHandler = async (req, res, next) => {
     data.team_name_slug = data.team_name.toLowerCase();
     data.team_name_slug = slugifer(data.team_name_slug);
 
+    console.log("=== TEAM CREATION DEBUG ===");
+    console.log("User ID:", loggedInUser.id);
+    console.log("User credit:", loggedInUser.credit);
+    console.log("Team name:", data.team_name);
+    console.log("Favorite coach:", data.favorite_coach);
+    console.log("Number of players in request:", data.players?.length || 0);
+
     // Check coach exists in DB
     const favorite_coach = await CoachDAL.getCoachById(data.favorite_coach);
     if (!favorite_coach) return next(new AppError("Coach not found", 404));
@@ -43,6 +50,8 @@ export const createTeam: RequestHandler = async (req, res, next) => {
     // Check total price of all players is within the user's budget
     const totalPlayersPrice = checkTotalPlayersPrice(data.players);
     data.budget = parseFloat((100 - totalPlayersPrice).toFixed(1)); // Update team budget
+    console.log("Calculated team budget:", data.budget);
+    console.log("=== END TEAM CREATION DEBUG ===");
 
     // Check number of players at each position
     checkNumOfPlayersAtEachPosition(data.players);
@@ -745,6 +754,18 @@ export const refereshPoints: RequestHandler = async (req, res, next) => {
     // }
     const playerStats = await player_stats(matchIds);
     const players = await calculate_fantasy_points(client.players, playerStats);
+
+    // If game week is NOT done (live updates), remove captain/vice-captain doubling
+    // Captain/vice-captain logic should only apply when game week is finalized
+    if (!activeGameWeek.is_done) {
+      for (const player of players) {
+        // During live updates, don't double captain/vice-captain points
+        // Just use base fantasy points
+        if (player.is_captain || player.is_vice_captain) {
+          player.final_fantasy_point = player.fantasy_point;
+        }
+      }
+    }
 
     // Respond
     res.status(200).json({

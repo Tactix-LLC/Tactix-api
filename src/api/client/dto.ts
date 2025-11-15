@@ -23,6 +23,7 @@ export default interface IClientDoc extends Document {
   is_agent: boolean;
   agent_code: string;
   ref_agent_code: string;
+  fcm_token?: string;
   commission_balance: number;
   earned_commission: number;
   prize_balance: number;
@@ -64,7 +65,7 @@ declare global {
     interface IUpdateProfile {
       first_name: string;
       last_name: string;
-      birth_date: Date;
+      birth_date?: Date;
     }
     interface IUpdatePin {
       current_pin: string;

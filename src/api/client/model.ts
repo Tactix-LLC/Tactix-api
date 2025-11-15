@@ -22,7 +22,6 @@ const clientSchema = new Schema(
       type: String,
       required: false,
       maxlength: [20, "Phone number can not exceed 20 characters"],
-      minlength: [10, "Phone number can not be less than 10 characters"],
       unique: true,
       sparse: true, // Allows multiple null values for unique field
     },
@@ -100,6 +99,11 @@ const clientSchema = new Schema(
     },
     agent_code: String,
     ref_agent_code: String,
+    fcm_token: {
+      type: String,
+      required: false,
+      default: null,
+    },
     commission_balance: {
       type: Number,
       default: 0,

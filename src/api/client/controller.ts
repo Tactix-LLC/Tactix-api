@@ -1,5 +1,7 @@
 import axios from "axios";
 import { RequestHandler } from "express";
+import { generatePasswordResetEmailTemplate } from "../../utils/email_templates";
+import { sendEmail } from "../../utils/sendgrid_email";
 
 import GameWeekDAL from "../game_week/dal";
 
@@ -25,7 +27,7 @@ export const clientLogin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.ILogin>req.value;
 
     // Get client and check pin
-    const client = await Client.getClienyByEmail(data.email);
+    const client = await Client.getClientByEmail(data.email);
     if (!client || !client.comparePin(data.pin, client.pin))
       return next(new AppError("Invalid phone number or pin", 400));
 
@@ -55,11 +57,13 @@ export const updateProfile: RequestHandler = async (req, res, next) => {
     // Get client
     const getClient = <IClientDoc>req.user;
 
-    // Check age
-    const currentYear = new Date(Date.now()).getFullYear();
-    const clientBirthYear = new Date(data.birth_date).getFullYear();
-    const age = currentYear - clientBirthYear;
-    if (age < 18) return next(new AppError("Under age", 403));
+    // Age validation removed - app now supports all ages
+    // if (data.birth_date) {
+    //   const currentYear = new Date(Date.now()).getFullYear();
+    //   const clientBirthYear = new Date(data.birth_date).getFullYear();
+    //   const age = currentYear - clientBirthYear;
+    //   if (age < 18) return next(new AppError("Under age", 403));
+    // }
 
     const client = await Client.updateClientProfile(getClient.id, data);
 
@@ -120,7 +124,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
     const { email } = <ClientRequest.IForgotPin>req.value;
 
     // Check if there is a client with the specified email
-    const client = await Client.getClienyByEmail(email);
+    const client = await Client.getClientByEmail(email);
     if (!client)
       return next(
         new AppError("There is no client with the specified email", 404)
@@ -154,47 +158,29 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
     });
 
     // Check the env and send Email
-    if (configs.env === "development") {
-      // Send Email
-      const transporter = nodemailer.createTransport({
-        host: configs.email.host,
-        port: configs.email.port,
-        secure: configs.email.secure,
-        auth: {
-          user: configs.email.auth.user,
-          pass: configs.email.auth.pass,
-        },
+    if (process.env.SENDGRID_API_KEY) {
+      // Use SendGrid HTTP API (works better on cloud platforms)
+      await sendEmail({
+        to: email,
+        subject: "Reset Your Password - Tactix Football Fantasy",
+        html: generatePasswordResetEmailTemplate(otp, client.first_name),
+        text: `Your password reset OTP is ${otp}`,
       });
 
-      const mailOptions = {
-        from: configs.email.auth.user,
-        to: email,
-        subject: "Password Reset OTP",
-        text: `Your password reset OTP is ${otp}`,
-      };
-
-      await transporter.sendMail(mailOptions);
       res.status(200).json({
         status: "SUCCESS",
         message: "A verification code is sent to your email.",
-        otp,
+        ...(configs.env === "development" && { otp }),
       });
     } else {
-      // Send via Email
-      const transporter = nodemailer.createTransport({
-        host: configs.email.host,
-        port: configs.email.port,
-        secure: configs.email.secure,
-        auth: {
-          user: configs.email.auth.user,
-          pass: configs.email.auth.pass,
-        },
-      });
+      // Fallback to SMTP (for local development)
+      const transporter = nodemailer.createTransport(configs.email as any);
 
       const mailOptions = {
-        from: configs.email.auth.user,
+        from: configs.email.from,
         to: email,
-        subject: "Password Reset OTP",
+        subject: "Reset Your Password - Tactix Football Fantasy",
+        html: generatePasswordResetEmailTemplate(otp, client.first_name),
         text: `Your password reset OTP is ${otp}`,
       };
 
@@ -202,6 +188,7 @@ export const forgotPin: RequestHandler = async (req, res, next) => {
       res.status(200).json({
         status: "SUCCESS",
         message: "A verification code is sent to your email.",
+        ...(configs.env === "development" && { otp }),
       });
     }
   } catch (error) {
@@ -216,7 +203,7 @@ export const verifyResetOtp: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IVerifyResetOtp>req.value;
 
     // Get client
-    const client = await Client.getClienyByEmail(data.email);
+    const client = await Client.getClientByEmail(data.email);
     if (!client)
       return next(
         new AppError("There is no client with the specified email", 404)
@@ -262,7 +249,7 @@ export const resetPin: RequestHandler = async (req, res, next) => {
     const data = <ClientRequest.IResetPin>req.value;
 
     // Get client
-    const client = await Client.getClienyByEmail(data.email);
+    const client = await Client.getClientByEmail(data.email);
     if (!client)
       return next(
         new AppError("There is no client with the specified email", 404)
@@ -336,7 +323,7 @@ export const getClientByPhoneNumber: RequestHandler = async (
   next
 ) => {
   try {
-    const client = await Client.getClientByPhoneNumber(req.params.phone_number);
+    const client = await Client.getClientByPhonenumber(req.params.phone_number);
     if (!client)
       return next(
         new AppError("There is no client with the specified phone number", 404)

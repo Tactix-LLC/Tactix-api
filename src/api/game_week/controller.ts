@@ -8,7 +8,9 @@ import Season from "../season/dal";
 import Competition from "../competition/dal";
 import axios from "axios";
 import configs from "../../configs";
+import TimezoneUtil from "../../utils/timezone";
 import GameWeekTeam from "../game_week_team/dal";
+import GameWeekTeamModel from "../game_week_team/model";
 import { Player } from "./dto";
 import player_stats from "../team/utils/player_stats";
 import { IPlayersData } from "../team/dto";
@@ -17,6 +19,8 @@ import calculate_fantasy_points from "../team/utils/calculate_fantasy_points";
 import calculate_points from "./utils/calculate_points";
 import live_rank from "../game_week_team/utils/live_rank";
 import AutoJoinJobManager from "./utils/auto_join_job";
+import NotificationJobManager from "./utils/notification_job";
+import GameWeekCompletionJobManager from "./utils/gameweek_completion_job";
 
 // Create game weeks
 export const createGameWeek: RequestHandler = async (req, res, next) => {
@@ -45,25 +49,47 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     if (!competition)
       return next(new AppError("Unknown competition selected", 400));
 
-    // Get all matches in a competition to get the latest round.
-    const competitionMatches = await axios.get(
-      `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${game_week}`
-    );
-
-    if (competitionMatches.data.status !== "ok")
-      return next(
-        new AppError("Sorry, Competition match does not exist.", 404)
+    // Get all matches for the specific round by fetching multiple pages
+    let allMatches: any[] = [];
+    let currentPage = parseInt(game_week);
+    let hasMorePages = true;
+    let maxPagesChecked = 0;
+    
+    while (hasMorePages && maxPagesChecked < 10) { // Safety limit to prevent infinite loops
+      const competitionMatches = await axios.get(
+        `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${currentPage}`
       );
 
-    // Match IDS
+      if (competitionMatches.data.status !== "ok") {
+        break; // Stop if API returns error
+      }
+
+      const pageMatches = competitionMatches.data.response.items;
+      const roundMatchesFromPage = pageMatches.filter((match: any) => match.round === game_week);
+      
+      // Add matches from this page
+      allMatches.push(...roundMatchesFromPage);
+      
+      // Check if we should continue to next page
+      // If this page has matches from our round, continue to next page
+      // If this page has no matches from our round, we've found all matches
+      hasMorePages = roundMatchesFromPage.length > 0;
+      currentPage++;
+      maxPagesChecked++;
+    }
+    
+    if (allMatches.length === 0) {
+      return next(new AppError(`No matches found for round ${game_week}`, 404));
+    }
+
+    // Match IDS (only from the specific round)
     const matchIds: string[] = [];
-    const matches: { mid: string }[] = competitionMatches.data.response.items;
-    matches.forEach((match) => {
+    allMatches.forEach((match: any) => {
       matchIds.push(match.mid);
     });
 
-    // Last match
-    const lastMatch = competitionMatches.data.response.items[9];
+    // Last match (from the specific round)
+    const lastMatch = allMatches[allMatches.length - 1];
 
     // Check if there is an active game week
     const activeGameweek = await GameWeek.getLiveGameWeek();
@@ -75,21 +101,25 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
         `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${activeGameweek.game_week}`
       );
 
-      const previousLastMatch =
-        previousCompetitionMatches.data.response.items[9];
+      const previousAllMatches = previousCompetitionMatches.data.response.items;
+      const previousRoundMatches = previousAllMatches.filter((match: any) => match.round === activeGameweek.game_week);
+      
+      if (previousRoundMatches.length > 0) {
+        const previousLastMatch = previousRoundMatches[previousRoundMatches.length - 1];
 
-      if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
-        return next(
-          new AppError(
-            "The current game week is not done yet. Please create a new game week once the current game week ends",
-            400
-          )
-        );
+        if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
+          return next(
+            new AppError(
+              "The current game week is not done yet. Please create a new game week once the current game week ends",
+              400
+            )
+          );
+        }
       }
     }
 
-    // First match of the game week0
-    const firstMatch = competitionMatches.data.response.items[0];
+    // First match of the game week (from the specific round)
+    const firstMatch = allMatches[0];
 
     // Check game week(from request body) is same as the round in the first index of 'response'
     // TODO Beka Check for last gameweek commented
@@ -97,16 +127,9 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     //   return next(new AppError("Please select latest round", 400));
     // }
 
-    // GMT
-    const ethiopianMatchStart = new Date(firstMatch.datestart).getTime();
-    const ethiopianMatchEnd = new Date(lastMatch.dateend).getTime();
-
-    // const ethiopianMatchStart = new Date("2023-08-20T15:00:00.000Z").getTime();
-    // const ethiopianMatchEnd = new Date(lastMatch.dateend).getTime();
-
-    // Deadlines
-    const transfer_deadline = ethiopianMatchStart - 2 * 60 * 60 * 1000;
-    const purchase_deadline = ethiopianMatchStart - 5 * 60 * 1000;
+    // Calculate deadlines using proper timezone handling
+    const deadlines = TimezoneUtil.calculateDeadlines(firstMatch.datestart);
+    const ethiopianMatchEnd = TimezoneUtil.convertEntitySportDate(lastMatch.dateend);
 
     // Create game week
     const gameWeek = await GameWeek.createGameWeek({
@@ -115,10 +138,10 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       competition_id,
       sid: season.season_id,
       cid: competition.cid,
-      purchase_deadline: new Date(purchase_deadline),
-      transfer_deadline: new Date(transfer_deadline),
-      first_match_start_date: new Date(ethiopianMatchStart),
-      last_match_end_date: new Date(ethiopianMatchEnd),
+      purchase_deadline: deadlines.purchase_deadline,
+      transfer_deadline: deadlines.transfer_deadline,
+      first_match_start_date: deadlines.first_match_start_utc,
+      last_match_end_date: ethiopianMatchEnd,
       match_ids: matchIds,
       is_free,
     });
@@ -134,6 +157,14 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
     } catch (error) {
       console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
+    }
+
+    // Schedule transfer deadline reminder notification
+    try {
+      await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek);
+      console.log(`✅ Transfer deadline reminder scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
@@ -208,13 +239,9 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       }
     }
 
-    // GMT
-    const ethiopianMatchStart = new Date(first_match_start_date).getTime();
-    const ethiopianMatchEnd = new Date(last_match_end_date).getTime();
-
-    // Deadlines
-    const transfer_deadline_manual = ethiopianMatchStart - 2 * 60 * 60 * 1000;
-    const purchase_deadline_manual = ethiopianMatchStart - 5 * 60 * 1000;
+    // Calculate deadlines using proper timezone handling
+    const deadlines = TimezoneUtil.calculateDeadlines(first_match_start_date);
+    const ethiopianMatchEnd = TimezoneUtil.convertEntitySportDate(last_match_end_date.toString());
 
     // Create game week
     const gameWeek = await GameWeek.createGameWeek({
@@ -223,10 +250,10 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       competition_id,
       sid: season.season_id,
       cid: competition.cid,
-      purchase_deadline: new Date(purchase_deadline_manual),
-      transfer_deadline: new Date(transfer_deadline_manual),
-      first_match_start_date: new Date(ethiopianMatchStart),
-      last_match_end_date: new Date(ethiopianMatchEnd),
+      purchase_deadline: deadlines.purchase_deadline,
+      transfer_deadline: deadlines.transfer_deadline,
+      first_match_start_date: deadlines.first_match_start_utc,
+      last_match_end_date: ethiopianMatchEnd,
       match_ids,
       is_free,
     });
@@ -242,6 +269,14 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
       console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
     } catch (error) {
       console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
+    }
+
+    // Schedule transfer deadline reminder notification
+    try {
+      await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek);
+      console.log(`✅ Transfer deadline reminder scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
@@ -315,12 +350,9 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
       }
     }
 
-    const ethiopianMatchStart = new Date(first_match_start_date).getTime();
-    const ethiopianMatchEnd = new Date(last_match_end_date).getTime();
-
-    // Deadlines
-    const td = new Date(ethiopianMatchStart).getTime() - 2 * 60 * 60 * 1000;
-    const pd = new Date(ethiopianMatchStart).getTime() - 5 * 60 * 1000;
+    // Calculate deadlines using proper timezone handling
+    const deadlines = TimezoneUtil.calculateDeadlines(first_match_start_date);
+    const ethiopianMatchEnd = TimezoneUtil.convertEntitySportDate(last_match_end_date.toString());
 
     // Create game week
     const gameWeek = await GameWeek.createDoubleGameWeek({
@@ -329,14 +361,14 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
       competition_id,
       sid: season.season_id,
       cid: competition.cid,
-      purchase_deadline: new Date(pd),
-      transfer_deadline: new Date(td),
-      first_match_start_date: new Date(ethiopianMatchStart),
-      last_match_end_date: new Date(ethiopianMatchEnd),
+      purchase_deadline: deadlines.purchase_deadline,
+      transfer_deadline: deadlines.transfer_deadline,
+      first_match_start_date: deadlines.first_match_start_utc,
+      last_match_end_date: ethiopianMatchEnd,
       match_ids,
       is_double_gameweek,
-      double_gameweek_first_match: new Date(double_gameweek_first_match),
-      double_gameweek_transfer_deadline: new Date(td),
+      double_gameweek_first_match: TimezoneUtil.convertEntitySportDate(double_gameweek_first_match.toString()),
+      double_gameweek_transfer_deadline: deadlines.transfer_deadline,
       double_gameweek_teams,
       is_free,
     });
@@ -352,6 +384,14 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
       console.log(`✅ Auto-join job scheduled for new game week: ${gameWeek.game_week}`);
     } catch (error) {
       console.error(`❌ Failed to schedule auto-join job for game week ${gameWeek.game_week}:`, error);
+    }
+
+    // Schedule transfer deadline reminder notification
+    try {
+      await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek);
+      console.log(`✅ Transfer deadline reminder scheduled for new game week: ${gameWeek.game_week}`);
+    } catch (error) {
+      console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
     }
 
     // Response
@@ -375,11 +415,24 @@ export const getAllGameWeeks: RequestHandler = async (req, res, next) => {
   try {
     const gameWeeks = await GameWeek.getAllGameWeeks(req.query);
 
+    // Add participants_count to each game week
+    const gameWeeksWithCount = await Promise.all(
+      gameWeeks.map(async (gameWeek) => {
+        const participants_count = await GameWeekTeam.countClientsInGameWeek(
+          gameWeek._id
+        );
+        return {
+          ...gameWeek.toObject(),
+          participants_count,
+        };
+      })
+    );
+
     // Response
     res.status(200).json({
       status: "SUCCESS",
-      results: gameWeeks.length,
-      data: { gameWeeks },
+      results: gameWeeksWithCount.length,
+      data: { gameWeeks: gameWeeksWithCount },
     });
   } catch (error) {
     next(error);
@@ -584,7 +637,7 @@ export const fetchPlayerStat: RequestHandler = async (req, res, next) => {
     const matchIds = gameWeek.match_ids;
 
     // Generate URLs
-    const urls = [];
+    const urls: string[] = [];
     for (let i = 0; i < matchIds.length; i++) {
       urls.push(
         `${configs.entity_sport.url}/matches/${matchIds[i]}/newfantasy?token=${configs.entity_sport.token}`
@@ -710,78 +763,41 @@ export const updateToDone: RequestHandler = async (req, res, next) => {
     const gameWeek = await GameWeek.getGameWeekById(req.params.id);
     if (!gameWeek) return next(new AppError("Game week does not exists", 404));
 
-    // Check Date
-    // if (new Date(gameWeek.last_match_end_date).getTime() > Date.now()) {
-    //   return next(
-    //     new AppError(
-    //       "The current game week is not done yet. Please create a new game week once the current game week ends",
-    //       400
-    //     )
-    //   );
-    // }
-
-    // Get the number of teams who joined the gameweek
-    const count = await GameWeekTeam.countClientsInGameWeek(gameWeek._id);
-
-    // Check if there are team created under this game week
-    if (count > 0) {
-      // Page
-      let page = Math.floor(count / 10);
-      if (count % 10 !== 0) {
-        page += 1;
-      }
-
-      // Player stats
-      const playerStats = await GameWeek.getPlayerStat(gameWeek._id);
-      if (!playerStats)
-        return next(new AppError("Can not fetch the player stat data", 404));
-
-      // Loop on the whole teams that joined this specific game week and update the points
-      for (let i = 1; i <= page; i++) {
-        const gameWeekTeams = await GameWeekTeam.getGameweekTeamsForPoint(
-          gameWeek._id,
-          i
-        );
-        gameWeekTeams.forEach(async (gameWeekTeam) => {
-          // Calculate player points
-          const playersPoints = await calculate_fantasy_points(
-            gameWeekTeam.players,
-            JSON.parse(playerStats)
-          );
-
-          const { totalPoint, players } = await calculate_points(playersPoints);
-
-          // Update the team with the latest points
-          const updatedGameWeekTeam =
-            await GameWeekTeam.updateTotalGameWeekPointAndPlayers({
-              id: gameWeekTeam._id,
-              total_point: totalPoint,
-              players: players,
-            });
-
-          // Update players on team
-          const updatedTeam = await TeamDAL.updateFantasyPointAndPlayers({
-            id: gameWeekTeam.team_id,
-            total_fantasy_point: totalPoint,
-          });
-        });
-      }
+    // Check if player stats are available
+    const playerStats = await GameWeek.getPlayerStat(gameWeek._id);
+    if (!playerStats && is_done === true) {
+      return next(new AppError("Cannot mark game week as done. Player stats not fetched yet.", 400));
     }
 
-    // Update
-    const updatedGameweek = await GameWeek.updateToDone({
-      id: req.params.id,
-      is_done,
-    });
+    // If marking as done, start the background job
+    if (is_done === true) {
+      // Start the completion job in the background
+      await GameWeekCompletionJobManager.startCompletionJob(req.params.id);
 
-    // Respond
-    res.status(200).json({
-      status: "SUCCESS",
-      message: "Game week successfully updated",
-      data: {
-        gameWeek: updatedGameweek,
-      },
-    });
+      // Respond immediately
+      res.status(202).json({
+        status: "SUCCESS",
+        message: "Game week completion job started. Points calculation is running in the background.",
+        data: {
+          gameWeekId: req.params.id,
+          jobStatus: GameWeekCompletionJobManager.getJobStatus(req.params.id),
+        },
+      });
+    } else {
+      // If marking as not done (re-opening), do it synchronously
+      const updatedGameweek = await GameWeek.updateToDone({
+        id: req.params.id,
+        is_done: false,
+      });
+
+      res.status(200).json({
+        status: "SUCCESS",
+        message: "Game week successfully reopened",
+        data: {
+          gameWeek: updatedGameweek,
+        },
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -956,9 +972,10 @@ export const triggerAutoJoin: RequestHandler = async (req, res, next) => {
     console.log('🚀 [triggerAutoJoin] Manual trigger for game week:', req.params.id);
     
     const gameWeekId = req.params.id;
+    const adminId = req.body.admin?._id || req.body.admin?.id; // Get admin ID from authenticated request
     
-    // Execute auto-join
-    const results = await AutoJoinJobManager.executeAutoJoin(gameWeekId);
+    // Execute auto-join with manual trigger type and admin ID
+    const results = await AutoJoinJobManager.executeAutoJoin(gameWeekId, "manual", adminId);
     
     console.log('✅ [triggerAutoJoin] Results:', results);
     
@@ -1026,3 +1043,79 @@ export const rescheduleAutoJoinJobs: RequestHandler = async (req, res, next) => 
     next(error);
   }
 };
+
+// Get game week completion job status
+export const getCompletionJobStatus: RequestHandler = async (req, res, next) => {
+  try {
+    const gameWeekId = req.params.id;
+    const jobStatus = GameWeekCompletionJobManager.getJobStatus(gameWeekId);
+
+    if (!jobStatus) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "No completion job found for this game week",
+        data: null,
+      });
+    }
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Job status retrieved successfully",
+      data: { jobStatus },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all completion jobs
+export const getAllCompletionJobs: RequestHandler = async (req, res, next) => {
+  try {
+    const jobs = GameWeekCompletionJobManager.getAllJobs();
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "All jobs retrieved successfully",
+      data: { jobs },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Cleanup old completion jobs
+export const cleanupCompletionJobs: RequestHandler = async (req, res, next) => {
+  try {
+    GameWeekCompletionJobManager.cleanupOldJobs();
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Old jobs cleaned up successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Helper function to calculate cumulative team points across all completed game weeks
+async function calculateCumulativeTeamPoints(teamId: string): Promise<number> {
+  try {
+    // Get all game week teams for this team across all game weeks
+    const allGameWeekTeams = await GameWeekTeam.getByTeamId(teamId);
+    
+    let cumulativeTotal = 0;
+    
+    for (const gameWeekTeam of allGameWeekTeams) {
+      // Only include points from completed game weeks
+      const gameWeek = await GameWeek.getGameWeekById(gameWeekTeam.game_week_id);
+      if (gameWeek && gameWeek.is_done) {
+        cumulativeTotal += gameWeekTeam.total_fantasy_point || 0;
+      }
+    }
+    
+    return cumulativeTotal;
+  } catch (error) {
+    console.error('Error calculating cumulative team points:', error);
+    return 0;
+  }
+}

@@ -30,6 +30,7 @@ import {
   getClientsNotJoinedGamweek,
   agentJoinedGameweek,
   getPhoneNumbersOfClients,
+  adminJoinUserToGameWeek,
 } from "./controller";
 
 // Mount routes with their respective handler methods in controller
@@ -169,6 +170,14 @@ router.get(
   protect,
   auth("Super-admin", "Admin", "Client"),
   getPlayerSelectionStatGameWeek
+);
+
+// Admin: Join user to active game week
+router.post(
+  "/admin/join/:client_id",
+  protect,
+  auth("Super-admin", "Admin"),
+  adminJoinUserToGameWeek
 );
 
 // Export router

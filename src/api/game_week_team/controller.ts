@@ -211,6 +211,108 @@ export const joinGameWeek: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Admin: Manually join a user to the current active game week (bypasses credit/deadline checks)
+export const adminJoinUserToGameWeek: RequestHandler = async (req, res, next) => {
+  try {
+    const { client_id } = req.params;
+    
+    // Find the active game week
+    const gameWeek = await GameWeekDAL.getLiveGameWeek();
+    if (!gameWeek) {
+      return next(new AppError("There's no active game week", 400));
+    }
+
+    // Get the client
+    const user = await Client.getClientById(client_id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    // Check if user already joined
+    const existingJoin = await GameWeekTeam.getByGameWeekAndClientId({
+      client_id: client_id,
+      game_week_id: gameWeek.id,
+    });
+    
+    if (existingJoin) {
+      return res.status(200).json({
+        status: "SUCCESS",
+        message: "User is already joined to this game week",
+        data: { gameWeekTeam: existingJoin, alreadyJoined: true },
+      });
+    }
+
+    // Check team exists and has 15 players
+    const clientTeam = await TeamDAL.getClientTeams(client_id);
+    if (!clientTeam || !Array.isArray(clientTeam.players) || clientTeam.players.length < 15) {
+      return next(new AppError("User hasn't created a complete team yet (needs 15 players)", 400));
+    }
+
+    // Get competition from team
+    const cid = clientTeam.competition;
+    if (!cid) {
+      return next(new AppError("Team doesn't have a competition assigned", 400));
+    }
+
+    // Create game week team entry (admin bypass - no credit check, no deadline check)
+    const data: IGameWeekTeamRequest.ICreateGameWeekTeamInput & {
+      client_id: string;
+      team_id: string;
+      game_week_id: string;
+      players: Array<IPlayersData>;
+    } = {
+      client_id: client_id,
+      team_id: clientTeam.id,
+      cid,
+      players: clientTeam.players,
+      game_week_id: gameWeek.id,
+    };
+
+    const gameWeekTeam = await GameWeekTeam.createGameWeekTeam(data);
+
+    if (gameWeekTeam) {
+      // Create purchase entry (free for admin joins)
+      await Purchase.createPurchase({
+        client_id: client_id,
+        game_week: gameWeek.game_week,
+        team_name: clientTeam?.team_name,
+        amount: 0,
+        is_package: false,
+      });
+
+      // Handle agent commission if applicable (same logic as regular join)
+      if (user.ref_agent_code) {
+        const clientGameWeekTeams = await GameWeekTeam.getClientGameWeekTeams(client_id);
+        const agent = await Client.getClientByAgentCode(user.ref_agent_code);
+        if (agent && clientGameWeekTeams.length === 1) {
+          await CommissionDAL.createCommission({
+            client_id: client_id,
+            agent_id: agent.id,
+          });
+
+          let earnedCommission: number = agent.earned_commission ? agent.earned_commission + 25 : 25;
+          let availableCommission: number = agent.commission_balance ? agent.commission_balance + 25 : 25;
+          await Client.updateEarnedAvailableCommission({
+            agent_id: agent.id,
+            earnedCommission,
+            availableCommission,
+          });
+        }
+      }
+
+      res.status(201).json({
+        status: "SUCCESS",
+        message: `User successfully joined game week ${gameWeek.game_week}`,
+        data: { gameWeekTeam },
+      });
+    } else {
+      return next(new AppError("Failed to join user to game week", 500));
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Check client has joined the current active game week
 export const checkClientJoinedActiveGameWeek: RequestHandler = async (
   req,
@@ -326,6 +428,25 @@ export const getGameWeekTeam: RequestHandler = async (req, res, next) => {
 //get a game week teams
 export const getAllGameWeekTeams: RequestHandler = async (req, res, next) => {
   try {
+    // If game_week_id is provided in query, use getByGameWeekId which has proper populate
+    if (req.query.game_week_id) {
+      const gameWeekTeam = await GameWeekTeam.getByGameWeekId(
+        req.query.game_week_id as string,
+        req.query
+      );
+
+      if (gameWeekTeam.length === 0) {
+        return next(new AppError("No game week team found", 404));
+      }
+
+      return res.status(200).json({
+        status: "SUCCESS",
+        results: gameWeekTeam.length,
+        data: { gameWeekTeam },
+      });
+    }
+
+    // Otherwise use the general getAllGameWeekTeams
     const gameWeekTeam = await GameWeekTeam.getAllGameWeekTeams(req.query);
 
     if (gameWeekTeam.length === 0) {
@@ -735,25 +856,7 @@ export const getMonthlyLeaderBoard: RequestHandler = async (req, res, next) => {
   try {
     // Month
     const month = req.query.month as string;
-    // // Convert given month to date
-    // const monthOfLeaderboard = new Date(month).getMonth() + 1;
-
-    // // Get currently month
-    // const today = new Date();
-    // const currentMonth = today.getMonth() + 1;
-
-    // // Check requested month for a leaderboard is not same as the current month
-    // if (
-    //   currentMonth === monthOfLeaderboard ||
-    //   monthOfLeaderboard > currentMonth
-    // ) {
-    //   return res.status(200).json({
-    //     status: "SUCCESS",
-    //     results: 0,
-    //     data: { monthlyLeaderbaord: [] },
-    //   });
-    // }
-
+    
     // Find monthly leaderboard
     const monthlyLeaderbaord = await GameWeekTeam.getMonthlyLeaderbaord(
       month,

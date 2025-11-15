@@ -97,7 +97,7 @@ export default class TeamDAL {
     project?: boolean
   ): Promise<ITeamDoc | null> {
     try {
-      let team = null;
+      let team: any = null;
       if (project) {
         team = await Team.findById(id).select(
           "total_fantasy_point favorite_coach favorite_tactic team_name budget id competition"
@@ -395,7 +395,7 @@ export default class TeamDAL {
       const team = await Team.findByIdAndUpdate(
         data.id,
         {
-          $inc: { total_fantasy_point: data.total_fantasy_point },
+          $set: { total_fantasy_point: data.total_fantasy_point },
         },
         { runValidators: true, new: true }
       );

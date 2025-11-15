@@ -9,18 +9,29 @@ import {
 } from "./validation";
 import {
   createPlayerStat,
-  getPlayerStatByGameweek,
-  getPlayerStatById,
-  getAllTimePlayerStat,
-  deletePlayerStat,
-  updatePosAndPoint,
+  getAllPlayerStats,
+  getAggregatedPlayerStats,
+  getPlayerStatsByGameWeek,
+  updatePlayerStat,
+  bulkUpdatePlayerStats,
+  recalculateGameWeekPoints,
+  recalculateTeamPointsForGameWeek,
+  generatePlayerStats,
 } from "./controller";
 
 router.get(
   "/all",
   protect,
   auth("Super-admin", "Admin", "Client"),
-  getAllTimePlayerStat
+  getAllPlayerStats
+);
+
+// New route for aggregated player stats (for mobile app)
+router.get(
+  "/aggregated",
+  protect,
+  auth("Super-admin", "Admin", "Client"),
+  getAggregatedPlayerStats
 );
 
 router
@@ -32,19 +43,58 @@ router
     createPlayerStat
   );
 
-router
-  .route("/:id")
-  .get(getPlayerStatById)
-  .delete(protect, auth("Super-admin"), deletePlayerStat);
 
-router.get("/:gameweekid/gameweek", getPlayerStatByGameweek);
+router.get("/:gameweekid/gameweek", getPlayerStatsByGameWeek);
 
-router.patch(
-  "/:id/positionandpoint",
+
+// New admin routes for player point editing
+router.get(
+  "/admin/all",
+  protect,
+  auth("Super-admin", "Admin"),
+  getAllPlayerStats
+);
+
+router.get(
+  "/admin/gameweek/:gameWeekId",
+  protect,
+  auth("Super-admin", "Admin"),
+  getPlayerStatsByGameWeek
+);
+
+router.post(
+  "/admin/gameweek/:gameWeekId/generate",
+  protect,
+  auth("Super-admin", "Admin"),
+  generatePlayerStats
+);
+
+router.put(
+  "/admin/gameweek/:gameWeekId/player/:playerId",
+  protect,
+  auth("Super-admin", "Admin"),
+  updatePlayerStat
+);
+
+router.put(
+  "/admin/gameweek/:gameWeekId/bulk",
+  protect,
+  auth("Super-admin", "Admin"),
+  bulkUpdatePlayerStats
+);
+
+router.post(
+  "/admin/gameweek/:gameWeekId/recalculate",
   protect,
   auth("Super-admin"),
-  validator(validateUpdatePlayerStat),
-  updatePosAndPoint
+  recalculateGameWeekPoints
+);
+
+router.post(
+  "/admin/gameweek/:gameWeekId/recalculate-teams",
+  protect,
+  auth("Super-admin", "Admin"),
+  recalculateTeamPointsForGameWeek
 );
 
 // Export router
