@@ -197,7 +197,9 @@ export const getPlayerStatsByGameWeek: RequestHandler = async (req, res, next) =
     // Handle both parameter names: gameweekid (from old route) and gameWeekId (from admin route)
     const gameWeekId = req.params.gameweekid || req.params.gameWeekId;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 100;
+    // Use high default limit (10000) for mobile app when no limit specified, 100 for admin pagination
+    const limitParam = req.query.limit as string;
+    const limit = limitParam ? parseInt(limitParam) : 10000;
     const search = req.query.search as string;
 
     // Get the game week to validate it exists
@@ -218,7 +220,7 @@ export const getPlayerStatsByGameWeek: RequestHandler = async (req, res, next) =
           is_done: gameWeek.is_done
         },
         playerStat: playerStats?.players || [],
-        total: playerStats?.players?.length || 0
+        total: (playerStats as any)?.totalCount || playerStats?.players?.length || 0
       }
     });
   } catch (error) {

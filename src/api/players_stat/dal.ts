@@ -185,6 +185,9 @@ export default class PlayerStat {
 
       if (!playerStatDoc) return null;
 
+      // Store original players array length before filtering
+      const originalPlayerCount = playerStatDoc.players.length;
+
       // Apply search filter if provided
       if (search && search.trim()) {
         const searchTerm = search.trim().toLowerCase();
@@ -195,9 +198,16 @@ export default class PlayerStat {
         );
       }
 
+      // Store total count after search filter but before pagination
+      const totalAfterSearch = (playerStatDoc as any).players.length;
+
       // Apply pagination
       const skip = (page - 1) * limit;
       (playerStatDoc as any).players = playerStatDoc.players.slice(skip, skip + limit);
+
+      // Add total count to the document for accurate pagination info
+      (playerStatDoc as any).totalCount = totalAfterSearch;
+      (playerStatDoc as any).originalCount = originalPlayerCount;
 
       return playerStatDoc;
     } catch (error) {
