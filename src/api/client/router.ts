@@ -21,6 +21,7 @@ import {
   getByAgentCode,
   deleteAllClients,
   deleteClient,
+  deleteOwnAccount,
   countAllClients,
   updatePrizeBalance,
   clientsWithoutTeam,
@@ -100,6 +101,14 @@ router.get(
   protect,
   auth("Super-admin", "Admin", "Call-center", "Client"),
   getProfile
+);
+
+// Delete own account (self-deletion)
+router.delete(
+  "/account",
+  protect,
+  auth("Client"),
+  deleteOwnAccount
 );
 
 router.patch(
