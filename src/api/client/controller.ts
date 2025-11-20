@@ -634,7 +634,30 @@ export const buyPackageUsingCredit: RequestHandler = async (req, res, next) => {
   }
 };
 
-// Delete a client
+// Delete own account (self-deletion for clients)
+export const deleteOwnAccount: RequestHandler = async (req, res, next) => {
+  try {
+    const user = <IClientDoc>req.user;
+    const clientId = user._id.toString();
+
+    // Delete the client
+    const client = await Client.deleteClient(clientId);
+    if (!client)
+      return next(
+        new AppError("There is no client with the specified ID", 404)
+      );
+
+    // Respond
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Your account has been successfully deleted",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Delete a client (admin only)
 export const deleteClient: RequestHandler = async (req, res, next) => {
   try {
     const client = await Client.deleteClient(req.params.id);
