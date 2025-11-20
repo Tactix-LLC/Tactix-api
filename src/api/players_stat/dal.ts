@@ -264,39 +264,54 @@ export default class PlayerStat {
             full_name: { $first: "$players.full_name" },
             position: { $first: "$players.position" },
             tname: { $first: "$players.tname" },
+            // Point values (from $players.goalscored, $players.assist, etc.)
+            total_goal_scored_point: { $sum: "$players.goalscored" },
+            total_assist_point: { $sum: "$players.assist" },
             total_passes_point: { $sum: { $literal: 0 } }, // Passes don't give points in your system
             total_shots_on_target_point: { $sum: { $literal: 0 } }, // Adjust if needed
-            total_cleansheet_point: { $sum: { $multiply: ["$players.cleansheet",
-              { $cond: [
-                { $in: ["$players.position", ["Goalkeeper", "Defender"]] }, 4,
-                { $cond: [{ $eq: ["$players.position", "Midfielder"] }, 1, 0] }
-              ] }
-            ] } },
-            total_shots_saved_point: { $sum: { $floor: { $divide: ["$players.shotssaved", 3] } } },
-            total_penalty_saved_point: { $sum: { $multiply: ["$players.penaltysaved", 5] } },
+            total_cleansheet_point: { $sum: "$players.cleansheet" },
+            total_shots_saved_point: { $sum: "$players.shotssaved" },
+            total_penalty_saved_point: { $sum: "$players.penaltysaved" },
             total_tacklesuccessful_point: { $sum: { $literal: 0 } }, // Adjust if needed
-            total_yellowcard_point: { $sum: { $multiply: ["$players.yellowcard", -1] } },
-            total_redcard_point: { $sum: { $multiply: ["$players.redcard", -3] } },
-            total_owngoal_point: { $sum: { $multiply: ["$players.owngoal", -2] } },
-            total_goalconceded_point: { $sum: { $literal: 0 } }, // Adjust based on your point system
-            total_penalty_missed_point: { $sum: { $multiply: ["$players.penaltymissed", -2] } },
+            total_yellowcard_point: { $sum: "$players.yellowcard" },
+            total_redcard_point: { $sum: "$players.redcard" },
+            total_owngoal_point: { $sum: "$players.owngoal" },
+            total_goalconceded_point: { $sum: "$players.goalsconceded" },
+            total_penalty_missed_point: { $sum: "$players.penaltymissed" },
             total_interception_won_point: { $sum: { $literal: 0 } }, // Adjust if needed
             total_fantasy_point: { $sum: "$players.fantasy_point" },
-            total_minutes_played: { $sum: "$players.minutesplayed" },
-            total_goal_scored: { $sum: "$players.goalscored" },
-            total_assist: { $sum: "$players.assist" },
-            total_passes: { $sum: "$players.passes" },
-            total_shots_on_target: { $sum: "$players.shotsontarget" },
-            total_cleansheet: { $sum: "$players.cleansheet" },
-            total_shots_saved: { $sum: "$players.shotssaved" },
-            total_penalty_saved: { $sum: "$players.penaltysaved" },
-            total_tacklesuccessful: { $sum: "$players.tacklesuccessful" },
-            total_yellowcard: { $sum: "$players.yellowcard" },
-            total_redcard: { $sum: "$players.redcard" },
-            total_owngoal: { $sum: "$players.owngoal" },
-            total_goalconceded: { $sum: "$players.goalsconceded" },
-            total_penalty_missed: { $sum: "$players.penaltymissed" },
-            total_interception_won: { $sum: "$players.interceptionwon" }
+            // Minutes played points: Calculate per gameweek (2 for 60+, 1 for 1-59, 0 for 0) and sum them
+            total_minutes_played_point: {
+              $sum: {
+                $cond: [
+                  { $gte: ["$players.stat.minutesplayed", 60] },
+                  2,
+                  {
+                    $cond: [
+                      { $gt: ["$players.stat.minutesplayed", 0] },
+                      1,
+                      0
+                    ]
+                  }
+                ]
+              }
+            },
+            // Actual stat counts (from $players.stat.goalscored, $players.stat.assist, etc.)
+            total_minutes_played: { $sum: "$players.stat.minutesplayed" },
+            total_goal_scored: { $sum: "$players.stat.goalscored" },
+            total_assist: { $sum: "$players.stat.assist" },
+            total_passes: { $sum: "$players.stat.passes" },
+            total_shots_on_target: { $sum: "$players.stat.shotsontarget" },
+            total_cleansheet: { $sum: "$players.stat.cleansheet" },
+            total_shots_saved: { $sum: "$players.stat.shotssaved" },
+            total_penalty_saved: { $sum: "$players.stat.penaltysaved" },
+            total_tacklesuccessful: { $sum: "$players.stat.tacklesuccessful" },
+            total_yellowcard: { $sum: "$players.stat.yellowcard" },
+            total_redcard: { $sum: "$players.stat.redcard" },
+            total_owngoal: { $sum: "$players.stat.owngoal" },
+            total_goalconceded: { $sum: "$players.stat.goalsconceded" },
+            total_penalty_missed: { $sum: "$players.stat.penaltymissed" },
+            total_interception_won: { $sum: "$players.stat.interceptionwon" }
           }
         },
         { ["$sort"]: { ["total_fantasy_point"]: -1 } }
