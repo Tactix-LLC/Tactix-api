@@ -18,6 +18,15 @@ import {
   deleteAllAdmins,
   getAllAdmins,
 } from "./controller";
+
+import {
+  getAllSubscriptions,
+  getUserSubscription,
+  getSubscriptionAnalytics,
+  expireSubscription,
+  syncSubscriptionFromRevenueCat
+} from "./subscription_controller";
+
 import {
   createFirstAdminValidation,
   adminLoginValidation,
@@ -94,6 +103,42 @@ router.patch(
   auth("Super-admin"),
   validator(updateAdminAccountStatusValidation),
   updateAdminAccountStatus
+);
+
+// Subscription routes
+router.get(
+  "/subscriptions",
+  protect,
+  auth("Super-admin", "Admin"),
+  getAllSubscriptions
+);
+
+router.get(
+  "/subscriptions/analytics",
+  protect,
+  auth("Super-admin", "Admin"),
+  getSubscriptionAnalytics
+);
+
+router.get(
+  "/subscriptions/:userId",
+  protect,
+  auth("Super-admin", "Admin"),
+  getUserSubscription
+);
+
+router.patch(
+  "/subscriptions/:userId/expire",
+  protect,
+  auth("Super-admin", "Admin"),
+  expireSubscription
+);
+
+router.post(
+  "/subscriptions/:userId/sync",
+  protect,
+  auth("Super-admin", "Admin"),
+  syncSubscriptionFromRevenueCat
 );
 
 router
