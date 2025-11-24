@@ -95,47 +95,27 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
       finalData.penaltysaved = 0;
     }
 
-    // Calculate defensive contributions (NEW for 2025/26)
-    let defensiveContributions = (player.tacklesuccessful || 0) + (player.interceptionwon || 0) + (player.clearance || 0);
-    switch (player.role) {
-      case "Defender":
-        if (defensiveContributions >= pointSystem.defender_defensive_contributions.threshold) {
-          finalData.defensive_contributions = pointSystem.defender_defensive_contributions.points;
-        } else {
-          finalData.defensive_contributions = 0;
-        }
-        break;
-      case "Midfielder":
-        if (defensiveContributions >= pointSystem.midfielder_defensive_contributions.threshold) {
-          finalData.defensive_contributions = pointSystem.midfielder_defensive_contributions.points;
-        } else {
-          finalData.defensive_contributions = 0;
-        }
-        break;
-      case "Forward":
-        if (defensiveContributions >= pointSystem.forward_defensive_contributions.threshold) {
-          finalData.defensive_contributions = pointSystem.forward_defensive_contributions.points;
-        } else {
-          finalData.defensive_contributions = 0;
-        }
-        break;
-      default:
-        finalData.defensive_contributions = 0;
-    }
+    // Defensive contributions removed - not part of the point system
+    finalData.defensive_contributions = 0;
 
-    // Calculate penalty points
-    finalData.penaltymissed = player.penaltymissed * pointSystem.penalty_miss;
+    // Calculate penalty points (always negative)
+    const penaltyMissPenalty = player.penaltymissed * Math.abs(pointSystem.penalty_miss || 2);
+    finalData.penaltymissed = -penaltyMissPenalty; // Ensure negative
 
-    // Calculate card points
-    finalData.yellowcard = player.yellowcard * pointSystem.yellow_card;
-    finalData.redcard = player.redcard * pointSystem.red_card;
+    // Calculate card points (always negative)
+    const yellowCardPenalty = player.yellowcard * Math.abs(pointSystem.yellow_card || 1);
+    finalData.yellowcard = -yellowCardPenalty; // Ensure negative
+    const redCardPenalty = player.redcard * Math.abs(pointSystem.red_card || 3);
+    finalData.redcard = -redCardPenalty; // Ensure negative
 
-    // Calculate other points
-    finalData.owngoal = player.owngoal * pointSystem.own_goal;
+    // Calculate own goal points (always negative)
+    const ownGoalPenalty = player.owngoal * Math.abs(pointSystem.own_goal || 2);
+    finalData.owngoal = -ownGoalPenalty; // Ensure negative
     
-    // Goals conceded (for goalkeepers and defenders)
+    // Goals conceded (for goalkeepers and defenders) (always negative)
     if (player.role === "Goalkeeper" || player.role === "Defender") {
-      finalData.goalsconceded = Math.floor(player.goalsconceded / 2) * pointSystem.goals_conceded_per_2;
+      const goalsConcededPenalty = Math.floor(player.goalsconceded / 2) * Math.abs(pointSystem.goals_conceded_per_2 || 1);
+      finalData.goalsconceded = -goalsConcededPenalty; // Ensure negative
     } else {
       finalData.goalsconceded = 0;
     }
@@ -148,14 +128,14 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     finalData.cleansheet = finalData.cleansheet ?? 0;
     finalData.shotssaved = finalData.shotssaved ?? 0;
     finalData.penaltysaved = finalData.penaltysaved ?? 0;
-    finalData.defensive_contributions = finalData.defensive_contributions ?? 0;
+    finalData.defensive_contributions = 0; // Not part of point system
     finalData.penaltymissed = finalData.penaltymissed ?? 0;
     finalData.yellowcard = finalData.yellowcard ?? 0;
     finalData.redcard = finalData.redcard ?? 0;
     finalData.owngoal = finalData.owngoal ?? 0;
     finalData.goalsconceded = finalData.goalsconceded ?? 0;
 
-    // Calculate total fantasy points
+    // Calculate total fantasy points (defensive contributions excluded)
     const fantasy_point = (
       (finalData.playing_time || 0) +
       (finalData.goalscored || 0) +
@@ -163,7 +143,6 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
       (finalData.cleansheet || 0) +
       (finalData.shotssaved || 0) +
       (finalData.penaltysaved || 0) +
-      (finalData.defensive_contributions || 0) +
       (finalData.penaltymissed || 0) +
       (finalData.yellowcard || 0) +
       (finalData.redcard || 0) +

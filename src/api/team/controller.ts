@@ -755,17 +755,8 @@ export const refereshPoints: RequestHandler = async (req, res, next) => {
     const playerStats = await player_stats(matchIds);
     const players = await calculate_fantasy_points(client.players, playerStats);
 
-    // If game week is NOT done (live updates), remove captain/vice-captain doubling
-    // Captain/vice-captain logic should only apply when game week is finalized
-    if (!activeGameWeek.is_done) {
-      for (const player of players) {
-        // During live updates, don't double captain/vice-captain points
-        // Just use base fantasy points
-        if (player.is_captain || player.is_vice_captain) {
-          player.final_fantasy_point = player.fantasy_point;
-        }
-      }
-    }
+    // Captain/vice-captain doubling logic is already applied in calculate_fantasy_points
+    // which uses calculate_fpl_points_legacy that doubles captain points during live updates
 
     // Respond
     res.status(200).json({

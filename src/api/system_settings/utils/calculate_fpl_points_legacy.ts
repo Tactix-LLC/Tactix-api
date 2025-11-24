@@ -138,39 +138,36 @@ export default async (
         fantasy_point += stat.penaltysaved * pointSystem.penalty_save;
       }
 
-      // Defensive contributions (NEW for 2025/26)
-      let totalDefensiveContributions = (stat.tacklesuccessful || 0) + (stat.interceptionwon || 0) + (stat.clearance || 0);
-      switch (stat.role) {
-        case "Defender":
-          if (totalDefensiveContributions >= pointSystem.defender_defensive_contributions.threshold) {
-            fantasy_point += pointSystem.defender_defensive_contributions.points;
-          }
-          break;
-        case "Midfielder":
-          if (totalDefensiveContributions >= pointSystem.midfielder_defensive_contributions.threshold) {
-            fantasy_point += pointSystem.midfielder_defensive_contributions.points;
-          }
-          break;
-        case "Forward":
-          if (totalDefensiveContributions >= pointSystem.forward_defensive_contributions.threshold) {
-            fantasy_point += pointSystem.forward_defensive_contributions.points;
-          }
-          break;
+      // Defensive contributions removed - not part of the point system
+
+      // Penalty points (always subtract)
+      // Note: pointSystem values are stored as negative (-2, -1, etc.) but we use Math.abs() 
+      // and explicit subtraction to ensure negative points are always deducted
+      if (stat.penaltymissed > 0) {
+        const penaltyMissPenalty = stat.penaltymissed * Math.abs(pointSystem.penalty_miss || 2);
+        fantasy_point -= penaltyMissPenalty; // Subtract (never add)
       }
 
-      // Penalty points
-      fantasy_point += stat.penaltymissed * pointSystem.penalty_miss;
+      // Card points (always subtract)
+      if (stat.yellowcard > 0) {
+        const yellowCardPenalty = stat.yellowcard * Math.abs(pointSystem.yellow_card || 1);
+        fantasy_point -= yellowCardPenalty; // Subtract (never add)
+      }
+      if (stat.redcard > 0) {
+        const redCardPenalty = stat.redcard * Math.abs(pointSystem.red_card || 3);
+        fantasy_point -= redCardPenalty; // Subtract (never add)
+      }
 
-      // Card points
-      fantasy_point += stat.yellowcard * pointSystem.yellow_card;
-      fantasy_point += stat.redcard * pointSystem.red_card;
-
-      // Other points
-      fantasy_point += stat.owngoal * pointSystem.own_goal;
+      // Own goal points (always subtract)
+      if (stat.owngoal > 0) {
+        const ownGoalPenalty = stat.owngoal * Math.abs(pointSystem.own_goal || 2);
+        fantasy_point -= ownGoalPenalty; // Subtract (never add)
+      }
       
-      // Goals conceded (for goalkeepers and defenders)
+      // Goals conceded (for goalkeepers and defenders) (always subtract)
       if (stat.role === "Goalkeeper" || stat.role === "Defender") {
-        fantasy_point += Math.floor(stat.goalsconceded / 2) * pointSystem.goals_conceded_per_2;
+        const goalsConcededPenalty = Math.floor(stat.goalsconceded / 2) * Math.abs(pointSystem.goals_conceded_per_2 || 1);
+        fantasy_point -= goalsConcededPenalty; // Subtract (never add)
       }
 
       // Set the calculated points
@@ -238,42 +235,29 @@ export default async (
       player.shotssaved = shotsSavedPoints;
       player.penaltysaved = penaltySavedPoints;
 
-      // Defensive contributions
-      let playerDefensiveContributions = (stat.tacklesuccessful || 0) + (stat.interceptionwon || 0) + (stat.clearance || 0);
-      let defensivePoints = 0;
-      switch (stat.role) {
-        case "Defender":
-          if (playerDefensiveContributions >= pointSystem.defender_defensive_contributions.threshold) {
-            defensivePoints = pointSystem.defender_defensive_contributions.points;
-          }
-          break;
-        case "Midfielder":
-          if (playerDefensiveContributions >= pointSystem.midfielder_defensive_contributions.threshold) {
-            defensivePoints = pointSystem.midfielder_defensive_contributions.points;
-          }
-          break;
-        case "Forward":
-          if (playerDefensiveContributions >= pointSystem.forward_defensive_contributions.threshold) {
-            defensivePoints = pointSystem.forward_defensive_contributions.points;
-          }
-          break;
-      }
-      player.tacklesuccessful = defensivePoints;
+      // Defensive contributions removed - not part of the point system
+      // tacklesuccessful field not used for points calculation
+      player.tacklesuccessful = 0;
 
-      // Penalty miss points
-      player.penaltymissed = stat.penaltymissed * pointSystem.penalty_miss;
+      // Penalty miss points (always negative)
+      const penaltyMissPenalty = stat.penaltymissed * Math.abs(pointSystem.penalty_miss || 2);
+      player.penaltymissed = -penaltyMissPenalty; // Ensure negative
 
-      // Card points
-      player.yellowcard = stat.yellowcard * pointSystem.yellow_card;
-      player.redcard = stat.redcard * pointSystem.red_card;
+      // Card points (always negative)
+      const yellowCardPenalty = stat.yellowcard * Math.abs(pointSystem.yellow_card || 1);
+      player.yellowcard = -yellowCardPenalty; // Ensure negative
+      const redCardPenalty = stat.redcard * Math.abs(pointSystem.red_card || 3);
+      player.redcard = -redCardPenalty; // Ensure negative
 
-      // Own goal points
-      player.owngoal = stat.owngoal * pointSystem.own_goal;
+      // Own goal points (always negative)
+      const ownGoalPenalty = stat.owngoal * Math.abs(pointSystem.own_goal || 2);
+      player.owngoal = -ownGoalPenalty; // Ensure negative
 
-      // Goals conceded points
+      // Goals conceded points (always negative)
       let goalsConcededPoints = 0;
       if (stat.role === "Goalkeeper" || stat.role === "Defender") {
-        goalsConcededPoints = Math.floor(stat.goalsconceded / 2) * pointSystem.goals_conceded_per_2;
+        goalsConcededPoints = Math.floor(stat.goalsconceded / 2) * Math.abs(pointSystem.goals_conceded_per_2 || 1);
+        goalsConcededPoints = -goalsConcededPoints; // Ensure negative
       }
       player.goalsconceded = goalsConcededPoints;
 
