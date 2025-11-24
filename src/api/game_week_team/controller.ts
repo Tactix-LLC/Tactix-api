@@ -683,7 +683,7 @@ export const getWeeklyLeaderBoard: RequestHandler = async (req, res, next) => {
             console.log(job);
             await GameWeek.updateTimeInterval({
               id: gameWeek._id,
-              time_interval: Date.now() + 45 * 60 * 1000,
+              time_interval: Date.now() + 15 * 60 * 1000,
             });
           }
         }
