@@ -37,8 +37,8 @@ export default async (
       calculateGoalkeeperPoints(player, finalData, pointSystem);
     }
     
-    // Calculate defensive contributions (NEW for 2025/26)
-    calculateDefensiveContributions(player, finalData, pointSystem);
+    // Defensive contributions removed - not part of the point system
+    finalData.defensive_contributions = 0;
     
     // Calculate penalty points
     calculatePenaltyPoints(player, finalData, pointSystem);
@@ -220,26 +220,29 @@ function calculateDefensiveContributions(
 }
 
 /**
- * Calculate penalty points
+ * Calculate penalty points (always negative)
  */
 function calculatePenaltyPoints(
   player: Player,
   finalData: Partial<IPlayerStat>,
   pointSystem: IPointSystem
 ): void {
-  finalData.penaltymissed = player.penaltymissed * pointSystem.penalty_miss;
+  const penaltyMissPenalty = player.penaltymissed * Math.abs(pointSystem.penalty_miss || 2);
+  finalData.penaltymissed = -penaltyMissPenalty; // Ensure negative
 }
 
 /**
- * Calculate card points
+ * Calculate card points (always negative)
  */
 function calculateCardPoints(
   player: Player,
   finalData: Partial<IPlayerStat>,
   pointSystem: IPointSystem
 ): void {
-  finalData.yellowcard = player.yellowcard * pointSystem.yellow_card;
-  finalData.redcard = player.redcard * pointSystem.red_card;
+  const yellowCardPenalty = player.yellowcard * Math.abs(pointSystem.yellow_card || 1);
+  finalData.yellowcard = -yellowCardPenalty; // Ensure negative
+  const redCardPenalty = player.redcard * Math.abs(pointSystem.red_card || 3);
+  finalData.redcard = -redCardPenalty; // Ensure negative
 }
 
 /**
@@ -250,12 +253,14 @@ function calculateOtherPoints(
   finalData: Partial<IPlayerStat>,
   pointSystem: IPointSystem
 ): void {
-  // Own goals
-  finalData.owngoal = player.owngoal * pointSystem.own_goal;
+  // Own goals (always negative)
+  const ownGoalPenalty = player.owngoal * Math.abs(pointSystem.own_goal || 2);
+  finalData.owngoal = -ownGoalPenalty; // Ensure negative
   
-  // Goals conceded (for goalkeepers and defenders)
+  // Goals conceded (for goalkeepers and defenders) (always negative)
   if (player.role === "Goalkeeper" || player.role === "Defender") {
-    finalData.goalsconceded = Math.floor(player.goalsconceded / 2) * pointSystem.goals_conceded_per_2;
+    const goalsConcededPenalty = Math.floor(player.goalsconceded / 2) * Math.abs(pointSystem.goals_conceded_per_2 || 1);
+    finalData.goalsconceded = -goalsConcededPenalty; // Ensure negative
   } else {
     finalData.goalsconceded = 0;
   }
@@ -272,7 +277,7 @@ function setDefaultValues(finalData: any): void {
   finalData.cleansheet = finalData.cleansheet ?? 0;
   finalData.shotssaved = finalData.shotssaved ?? 0;
   finalData.penaltysaved = finalData.penaltysaved ?? 0;
-  finalData.defensive_contributions = finalData.defensive_contributions ?? 0;
+  finalData.defensive_contributions = 0; // Not part of point system
   finalData.penaltymissed = finalData.penaltymissed ?? 0;
   finalData.yellowcard = finalData.yellowcard ?? 0;
   finalData.redcard = finalData.redcard ?? 0;
@@ -281,7 +286,7 @@ function setDefaultValues(finalData: any): void {
 }
 
 /**
- * Calculate total fantasy points
+ * Calculate total fantasy points (defensive contributions excluded)
  */
 function calculateTotalPoints(finalData: any): number {
   return (
@@ -291,7 +296,6 @@ function calculateTotalPoints(finalData: any): number {
     (finalData.cleansheet || 0) +
     (finalData.shotssaved || 0) +
     (finalData.penaltysaved || 0) +
-    (finalData.defensive_contributions || 0) +
     (finalData.penaltymissed || 0) +
     (finalData.yellowcard || 0) +
     (finalData.redcard || 0) +

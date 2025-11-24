@@ -32,7 +32,7 @@ export default class GameWeekDAL {
         match_ids: data.match_ids,
         is_free: data.is_free,
         time_interval: new Date(
-          data.first_match_start_date.getTime() + 45 * 60 * 1000
+          data.first_match_start_date.getTime() + 15 * 60 * 1000
         ),
       });
       return gameWeek;
@@ -71,7 +71,7 @@ export default class GameWeekDAL {
         match_ids: data.match_ids,
         is_free: data.is_free,
         time_interval: new Date(
-          data.first_match_start_date.getTime() + 45 * 60 * 1000
+          data.first_match_start_date.getTime() + 15 * 60 * 1000
         ),
         is_double_gameweek: data.is_double_gameweek,
         double_gameweek_first_match: data.double_gameweek_first_match,

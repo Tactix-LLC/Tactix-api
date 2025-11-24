@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tactix Admin - Subscriptions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 24px;
+            color: #3498db;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 5px;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 12px 20px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: #34495e;
+            border-left: 3px solid #3498db;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 30px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #2c3e50;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-card.primary .value {
+            color: #3498db;
+        }
+
+        .stat-card.success .value {
+            color: #27ae60;
+        }
+
+        .stat-card.warning .value {
+            color: #f39c12;
+        }
+
+        .stat-card.danger .value {
+            color: #e74c3c;
+        }
+
+        /* Filters */
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .filter-group button {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .filter-group button:hover {
+            background: #2980b9;
+        }
+
+        /* Table */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge.monthly {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .badge.yearly {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Tactix Admin</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard">Dashboard</a></li>
+                <li><a href="#subscriptions" class="active">Subscriptions</a></li>
+                <li><a href="#users">Users</a></li>
+                <li><a href="#analytics">Analytics</a></li>
+                <li><a href="#settings">Settings</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header">
+                <h1>Subscription Management</h1>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card primary">
+                    <h3>Total Users</h3>
+                    <div class="value" id="total-users">-</div>
+                </div>
+                <div class="stat-card success">
+                    <h3>Active Subscriptions</h3>
+                    <div class="value" id="active-subs">-</div>
+                </div>
+                <div class="stat-card warning">
+                    <h3>Monthly MRR</h3>
+                    <div class="value" id="mrr">$-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Monthly Plans</h3>
+                    <div class="value" id="monthly-plans">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Yearly Plans</h3>
+                    <div class="value" id="yearly-plans">-</div>
+                </div>
+                <div class="stat-card danger">
+                    <h3>Expired</h3>
+                    <div class="value" id="expired-subs">-</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Search</label>
+                        <input type="text" id="search-input" placeholder="Search by name or email...">
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="status-filter">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Plan</label>
+                        <select id="plan-filter">
+                            <option value="">All Plans</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <button onclick="loadSubscriptions()">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="error-message" class="error" style="display: none;"></div>
+
+            <!-- Table -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                            <th>Plan</th>
+                            <th>Expires At</th>
+                            <th>Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subscriptions-table">
+                        <tr>
+                            <td colspan="7" class="loading">Loading subscriptions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:3000/api/admin'; // Update this with your API URL
+        let currentPage = 1;
+        let authToken = ''; // You'll need to set this after login
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get token from localStorage or prompt for login
+            authToken = localStorage.getItem('admin_token') || prompt('Enter your admin token:');
+            if (authToken) {
+                localStorage.setItem('admin_token', authToken);
+                loadSubscriptions();
+            }
+        });
+
+        // Load subscriptions
+        async function loadSubscriptions(page = 1) {
+            try {
+                const search = document.getElementById('search-input').value;
+                const status = document.getElementById('status-filter').value;
+                const plan = document.getElementById('plan-filter').value;
+
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: 20,
+                    ...(search && { search }),
+                    ...(status && { status }),
+                    ...(plan && { plan })
+                });
+
+                const response = await fetch(`${API_BASE_URL}/subscriptions?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load subscriptions');
+                }
+
+                const data = await response.json();
+                
+                // Update stats
+                updateStats(data.data.statistics);
+                
+                // Update table
+                updateTable(data.data.subscriptions);
+                
+                // Update pagination
+                updatePagination(data.data.pagination);
+                
+                // Hide error
+                document.getElementById('error-message').style.display = 'none';
+            } catch (error) {
+                console.error('Error loading subscriptions:', error);
+                document.getElementById('error-message').textContent = error.message;
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('subscriptions-table').innerHTML = 
+                    '<tr><td colspan="7" class="loading">Failed to load subscriptions</td></tr>';
+            }
+        }
+
+        // Update stats
+        function updateStats(stats) {
+            document.getElementById('total-users').textContent = stats.totalUsers || 0;
+            document.getElementById('active-subs').textContent = stats.activeSubscriptions || 0;
+            document.getElementById('mrr').textContent = `$${stats.revenue?.mrr || '0.00'}`;
+            document.getElementById('monthly-plans').textContent = stats.monthlySubscriptions || 0;
+            document.getElementById('yearly-plans').textContent = stats.yearlySubscriptions || 0;
+            document.getElementById('expired-subs').textContent = stats.expiredSubscriptions || 0;
+        }
+
+        // Update table
+        function updateTable(subscriptions) {
+            const tbody = document.getElementById('subscriptions-table');
+            
+            if (subscriptions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">No subscriptions found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = subscriptions.map(sub => `
+                <tr>
+                    <td>${sub.full_name || 'N/A'}</td>
+                    <td>${sub.email || 'N/A'}</td>
+                    <td>${sub.phone_number || 'N/A'}</td>
+                    <td><span class="badge ${sub.subscription_status || 'inactive'}">${sub.subscription_status || 'inactive'}</span></td>
+                    <td><span class="badge ${sub.subscription_plan || ''}">${sub.subscription_plan || 'N/A'}</span></td>
+                    <td>${sub.subscription_expires_at ? new Date(sub.subscription_expires_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>${new Date(sub.createdAt).toLocaleDateString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Update pagination
+        function updatePagination(pagination) {
+            const container = document.getElementById('pagination');
+            const { page, pages } = pagination;
+            
+            let html = '';
+            
+            // Previous button
+            html += `<button ${page === 1 ? 'disabled' : ''} onclick="loadSubscriptions(${page - 1})">Previous</button>`;
+            
+            // Page numbers
+            for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) {
+                html += `<button class="${i === page ? 'active' : ''}" onclick="loadSubscriptions(${i})">${i}</button>`;
+            }
+            
+            // Next button
+            html += `<button ${page === pages ? 'disabled' : ''} onclick="loadSubscriptions(${page + 1})">Next</button>`;
+            
+            container.innerHTML = html;
+        }
+
+        // Add enter key support for search
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('search-input')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    loadSubscriptions();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

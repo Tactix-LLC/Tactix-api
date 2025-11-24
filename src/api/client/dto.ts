@@ -34,6 +34,9 @@ export default interface IClientDoc extends Document {
   social_id?: string;
   profile_picture?: string;
   groups?: string[];
+  subscription_status?: string;
+  subscription_plan?: string | null;
+  subscription_expires_at?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   comparePin: (candidatePin: string, pin: string) => boolean;

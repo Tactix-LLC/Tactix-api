@@ -68,9 +68,16 @@ export default {
   google: {
     client_id: "545588730676-j8ubicjil67nigc71luslotbgk77ok94.apps.googleusercontent.com", // Android
     ios_client_id: "545588730676-cubab3ceuge681a5s1stjl30g8fd1lbt.apps.googleusercontent.com", // iOS
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   },
   apple: {
     clientId: "app.jointactix.fantasy", // Your app's bundle ID
+    sharedSecret: process.env.APPLE_SHARED_SECRET,
+  },
+  revenuecat: {
+    webhookSecret: process.env.REVENUECAT_WEBHOOK_SECRET, // Get from RevenueCat dashboard -> Project Settings -> Webhooks
+    apiKey: process.env.REVENUECAT_API_KEY, // Get from RevenueCat dashboard -> Project Settings -> API Keys (Secret Key)
   },
   firebase: {
     projectId: "tactix-5f3c2",

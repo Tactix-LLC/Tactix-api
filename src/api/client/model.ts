@@ -146,6 +146,20 @@ const clientSchema = new Schema(
       type: String,
       required: false,
     },
+    subscription_status: {
+      type: String,
+      enum: ["active", "inactive", "expired"],
+      default: "inactive",
+    },
+    subscription_plan: {
+      type: String,
+      enum: ["monthly", "yearly", null],
+      default: null,
+    },
+    subscription_expires_at: {
+      type: Date,
+      default: null,
+    },
     groups: [{
       type: mongoose.Types.ObjectId,
       ref: "Group",

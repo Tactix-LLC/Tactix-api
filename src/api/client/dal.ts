@@ -451,6 +451,29 @@ export default class Client {
     }
   }
 
+  // Update subscription
+  static async updateSubscription(data: {
+    id: string;
+    subscription_status: string;
+    subscription_plan: string;
+    subscription_expires_at: Date;
+  }): Promise<IClientDoc | null> {
+    try {
+      const client = await ClientModel.findByIdAndUpdate(
+        data.id,
+        {
+          subscription_status: data.subscription_status,
+          subscription_plan: data.subscription_plan,
+          subscription_expires_at: data.subscription_expires_at,
+        },
+        { runValidators: true, new: true }
+      );
+      return client;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Update Game week package
   static async updateGameweekPackage(data: {
     id: string;
