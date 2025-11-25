@@ -13,7 +13,7 @@ const termsSchema: Schema = new mongoose.Schema(
       type: String,
       required: [true, "Content is required"],
       min: [10, "Content must contain at least 10 characters"],
-      maxlength: [10000, "Content can not have more than 10000 characters"],
+      maxlength: [50000, "Content can not have more than 50000 characters"],
     },
     is_published: {
       type: Boolean,

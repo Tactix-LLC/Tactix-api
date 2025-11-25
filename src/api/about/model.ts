@@ -7,7 +7,7 @@ const aboutUsSchema: Schema = new Schema(
       type: String,
       required: [true, "Content is required"],
       minlength: [10, "Content must have at least 10 characters"],
-      maxlength: [10000, "Content must have less than 10000 characters"],
+      maxlength: [50000, "Content must have less than 50000 characters"],
     },
     is_active: {
       type: Boolean,
