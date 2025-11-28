@@ -10,8 +10,8 @@ export default (): Connection => {
     connectTimeoutMS: 30000, // 30 seconds
     retryWrites: true,
     w: 'majority' as const,
-    maxPoolSize: 10,
-    minPoolSize: 1,
+    maxPoolSize: 50, // Increased from 10 to handle more concurrent requests
+    minPoolSize: 5,  // Increased from 1 to maintain minimum connections
   };
 
   mongoose
