@@ -508,13 +508,25 @@ export const recalculateTeamPointsForGameWeek: RequestHandler = async (req, res,
         const updatedTeamPlayers = gameWeekTeam.players.map((teamPlayer: any) => {
           const latestPlayerStat = playerStats.find((ps: any) => ps.pid.toString() === teamPlayer.pid.toString());
           if (latestPlayerStat) {
+            // Calculate minutes played points based on actual minutes played, not fantasy points
+            // IMPORTANT: stat.minutesplayed contains actual minutes from raw stats (source of truth)
+            // latestPlayerStat.minutesplayed at top level might contain points (0,1,2) from old calculations
+            // Always prioritize stat.minutesplayed which is the raw stat value from the API
+            const actualMinutesPlayed = latestPlayerStat.stat?.minutesplayed ?? latestPlayerStat.minutesplayed ?? 0;
+            let minutesPlayedPoints = 0;
+            if (actualMinutesPlayed >= 60) {
+              minutesPlayedPoints = 2;
+            } else if (actualMinutesPlayed > 0) {
+              minutesPlayedPoints = 1;
+            }
+            
             // Update the team player: outer level = calculated points, stat = raw stats
             return {
               ...teamPlayer,
               // Outer level: calculated fantasy points
               fantasy_point: latestPlayerStat.fantasy_point,
               final_fantasy_point: latestPlayerStat.fantasy_point,
-              minutesplayed: latestPlayerStat.fantasy_point >= 1 ? (latestPlayerStat.minutesplayed >= 60 ? 2 : 1) : 0, // Points for minutes
+              minutesplayed: minutesPlayedPoints, // Points for minutes (based on actual minutes played)
               goalscored: latestPlayerStat.goalscored * (teamPlayer.position === 'Goalkeeper' ? 10 : teamPlayer.position === 'Defender' ? 6 : teamPlayer.position === 'Midfielder' ? 5 : 4), // Goal points
               assist: (latestPlayerStat.assist || 0) * 3, // Assist points
               cleansheet: (latestPlayerStat.cleansheet || 0) * (teamPlayer.position === 'Goalkeeper' || teamPlayer.position === 'Defender' ? 4 : teamPlayer.position === 'Midfielder' ? 1 : 0),
@@ -536,8 +548,10 @@ export const recalculateTeamPointsForGameWeek: RequestHandler = async (req, res,
               interceptionwon: latestPlayerStat.interceptionwon || 0,
               clearance: latestPlayerStat.clearance || 0,
               // stat object: raw stats only (no fantasy_point)
+              // Ensure stat.minutesplayed contains actual minutes played, not points
               stat: {
                 ...latestPlayerStat.stat,
+                minutesplayed: actualMinutesPlayed, // Use actual minutes played from stat or top level
                 fantasy_point: undefined // Remove fantasy_point from stat object
               }
             };

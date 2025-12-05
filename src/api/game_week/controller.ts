@@ -644,8 +644,9 @@ export const fetchPlayerStat: RequestHandler = async (req, res, next) => {
       );
     }
 
-    // Fetch the stat
-    const result = await axios.all(urls.map((url) => axios.get(url)));
+    // Fetch the stat with timeout to prevent hanging
+    // Use a longer timeout (60 seconds) as external API calls can be slow
+    const result = await axios.all(urls.map((url) => axios.get(url, { timeout: 60000 })));
 
     // Stat
     const playerStat: Player[] = [];
