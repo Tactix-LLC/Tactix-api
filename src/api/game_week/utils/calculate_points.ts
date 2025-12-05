@@ -64,8 +64,11 @@ export default (players: IPlayersData[]) => {
     // Switching players other than captain and vice captain
     if (!player.is_captain && !player.is_vice_captain && !player.is_bench) {
       if (sortedBenchPlayers.length > 0) {
+        // Check if player actually played (using stat.minutesplayed, not player.minutesplayed which contains points)
+        const playerMinutesPlayed = player.stat?.minutesplayed || 0;
+        
         // Switch players other than captian and vice captain
-        if (player.minutesplayed <= 0 && player.position !== "Goalkeeper") {
+        if (playerMinutesPlayed <= 0 && player.position !== "Goalkeeper") {
           if (sortedBenchPlayers[0].fantasy_point > 0) {
             player.is_bench = true;
             player.is_switched = true;
@@ -79,7 +82,7 @@ export default (players: IPlayersData[]) => {
             sortedBenchPlayers.splice(0, 1);
           }
         } else if (
-          player.minutesplayed <= 0 &&
+          playerMinutesPlayed <= 0 &&
           player.position === "Goalkeeper"
         ) {
           if (

@@ -69,6 +69,7 @@ class GameWeekCompletionJobManager {
 
       // Get the number of teams who joined the gameweek
       const count = await GameWeekTeam.countClientsInGameWeek(gameWeek._id);
+      const allTeamIds = new Set<string>(); // Collect all team IDs for final recalculation (declare outside if block)
 
       console.log(`👥 [GameWeekCompletionJob] Total teams to process: ${count}`);
 
@@ -109,6 +110,8 @@ class GameWeekCompletionJobManager {
 
           // Process all teams in this page
           const updatePromises = gameWeekTeams.map(async (gameWeekTeam) => {
+            // Collect team ID for final recalculation
+            allTeamIds.add(gameWeekTeam.team_id.toString());
             try {
               // Calculate player points
               const playersPoints = await calculate_fantasy_points(
@@ -126,7 +129,11 @@ class GameWeekCompletionJobManager {
               });
 
               // Calculate cumulative total fantasy points across all completed game weeks
-              const cumulativeTotal = await this.calculateCumulativeTeamPoints(gameWeekTeam.team_id);
+              // Include current game week even though it's not marked as done yet
+              const cumulativeTotal = await this.calculateCumulativeTeamPoints(
+                gameWeekTeam.team_id,
+                gameWeekId // Pass current game week ID to include it
+              );
 
               // Update players on team with cumulative total
               await TeamDAL.updateFantasyPointAndPlayers({
@@ -168,6 +175,36 @@ class GameWeekCompletionJobManager {
         is_done: true,
       });
 
+      console.log(`✅ [GameWeekCompletionJob] Game week marked as done. Recalculating final cumulative totals...`);
+
+      // Final recalculation: After marking as done, recalculate cumulative totals for all teams
+      // This ensures the game week is included in the "is_done" check
+      console.log(`🔄 [GameWeekCompletionJob] Recalculating cumulative totals for ${allTeamIds.size} teams...`);
+      
+      let finalRecalcCount = 0;
+      for (const teamId of allTeamIds) {
+        try {
+          // Recalculate cumulative total now that game week is marked as done
+          const finalCumulativeTotal = await this.calculateCumulativeTeamPoints(teamId);
+
+          // Update team with final cumulative total
+          await TeamDAL.updateFantasyPointAndPlayers({
+            id: teamId,
+            total_fantasy_point: finalCumulativeTotal,
+          });
+
+          finalRecalcCount++;
+          if (finalRecalcCount % 50 === 0) {
+            console.log(`⏳ [GameWeekCompletionJob] Final recalculation progress: ${finalRecalcCount}/${allTeamIds.size}`);
+          }
+        } catch (error) {
+          console.error(`❌ [GameWeekCompletionJob] Error recalculating final total for team ${teamId}:`, error);
+          // Continue with other teams
+        }
+      }
+
+      console.log(`✅ [GameWeekCompletionJob] Final recalculation complete: ${finalRecalcCount}/${allTeamIds.size} teams updated`);
+
       // Update job status to completed
       this.updateJobStatus(gameWeekId, {
         status: 'completed',
@@ -188,8 +225,13 @@ class GameWeekCompletionJobManager {
 
   /**
    * Helper function to calculate cumulative team points across all completed game weeks
+   * @param teamId - The team ID
+   * @param currentGameWeekId - Optional: Current game week ID to include even if not marked as done yet
    */
-  private static async calculateCumulativeTeamPoints(teamId: string): Promise<number> {
+  private static async calculateCumulativeTeamPoints(
+    teamId: string,
+    currentGameWeekId?: string
+  ): Promise<number> {
     try {
       // Get all game week teams for this team across all game weeks
       const allGameWeekTeams = await GameWeekTeam.getByTeamId(teamId);
@@ -197,9 +239,15 @@ class GameWeekCompletionJobManager {
       let cumulativeTotal = 0;
       
       for (const gameWeekTeam of allGameWeekTeams) {
-        // Only include points from completed game weeks
+        // Check if this is the current game week being processed
+        const isCurrentGameWeek = currentGameWeekId && 
+          gameWeekTeam.game_week_id.toString() === currentGameWeekId.toString();
+        
+        // Include points from:
+        // 1. Completed game weeks (is_done === true), OR
+        // 2. Current game week being processed (even if not marked as done yet)
         const gameWeek = await GameWeek.getGameWeekById(gameWeekTeam.game_week_id);
-        if (gameWeek && gameWeek.is_done) {
+        if (gameWeek && (gameWeek.is_done || isCurrentGameWeek)) {
           cumulativeTotal += gameWeekTeam.total_fantasy_point || 0;
         }
       }
