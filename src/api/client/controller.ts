@@ -29,7 +29,7 @@ export const clientLogin: RequestHandler = async (req, res, next) => {
     // Get client and check pin
     const client = await Client.getClientByEmail(data.email);
     if (!client || !client.comparePin(data.pin, client.pin))
-      return next(new AppError("Invalid phone number or pin", 400));
+      return next(new AppError("Invalid email or password", 400));
 
     // Generate token
     const token = generateToken({ id: client._id, user: "client" });
