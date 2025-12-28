@@ -296,6 +296,7 @@ export default class GameWeekTeamDAL {
           $group: {
             _id: "$client_id",
             total_fantasy_point: { $sum: "$total_fantasy_point" },
+            team_id: { $first: "$team_id" }, // Get the first team_id (all should be same for a client)
           },
         },
         {
@@ -318,12 +319,28 @@ export default class GameWeekTeamDAL {
           },
         },
         {
+          $lookup: {
+            from: "teams",
+            localField: "team_id",
+            foreignField: "_id",
+            as: "team_id",
+            pipeline: [
+              {
+                $project: { team_name: 1 },
+              },
+            ],
+          },
+        },
+        {
           $sort: {
             total_fantasy_point: -1,
           },
         },
         {
           $unwind: "$client_id",
+        },
+        {
+          $unwind: "$team_id",
         },
         {
           $setWindowFields: {
@@ -369,6 +386,7 @@ export default class GameWeekTeamDAL {
           $group: {
             _id: "$client_id",
             total_fantasy_point: { $sum: "$total_fantasy_point" },
+            team_id: { $first: "$team_id" }, // Get the first team_id (all should be same for a client)
           },
         },
         {
@@ -391,12 +409,28 @@ export default class GameWeekTeamDAL {
           },
         },
         {
+          $lookup: {
+            from: "teams",
+            localField: "team_id",
+            foreignField: "_id",
+            as: "team_id",
+            pipeline: [
+              {
+                $project: { team_name: 1 },
+              },
+            ],
+          },
+        },
+        {
           $sort: {
             total_fantasy_point: -1,
           },
         },
         {
           $unwind: "$client_id",
+        },
+        {
+          $unwind: "$team_id",
         },
         {
           $setWindowFields: {

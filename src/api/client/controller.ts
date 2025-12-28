@@ -368,12 +368,28 @@ export const getAllClients: RequestHandler = async (req, res, next) => {
   try {
     const clients = await Client.getAllClients(req.query);
 
+    // Get current environment from config
+    const currentEnvironment = process.env.NODE_ENV || "production";
+
+    // Add notification capability flag to each client
+    const clientsWithNotificationFlag = clients.map((client: IClientDoc) => {
+      const hasToken = client.fcm_token && client.fcm_token.trim() !== '';
+      // Users without environment field default to production only
+      const matchesEnvironment = (!client.environment && currentEnvironment === "production") || client.environment === currentEnvironment;
+      const canReceiveNotifications = hasToken && matchesEnvironment;
+      
+      return {
+        ...client.toObject(),
+        canReceiveNotifications,
+      };
+    });
+
     // Respond
     res.status(200).json({
       status: "SUCCESS",
-      results: clients.length,
+      results: clientsWithNotificationFlag.length,
       data: {
-        clients,
+        clients: clientsWithNotificationFlag,
       },
     });
   } catch (error) {

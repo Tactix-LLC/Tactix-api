@@ -24,6 +24,7 @@ export default interface IClientDoc extends Document {
   agent_code: string;
   ref_agent_code: string;
   fcm_token?: string;
+  environment?: string;
   commission_balance: number;
   earned_commission: number;
   prize_balance: number;
