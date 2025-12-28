@@ -104,6 +104,12 @@ const clientSchema = new Schema(
       required: false,
       default: null,
     },
+    environment: {
+      type: String,
+      enum: ["development", "production", "local", "qa"],
+      default: "production",
+      required: false,
+    },
     commission_balance: {
       type: Number,
       default: 0,
