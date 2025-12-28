@@ -5,6 +5,7 @@ import {
   sendTestNotification,
   getScheduledNotifications,
   getCompletedNotifications,
+  getAllNotifications,
   rescheduleAllNotifications,
   updateFCMToken,
   getNotificationStats,
@@ -12,6 +13,7 @@ import {
   sendNotificationToUsers,
   sendNotificationToTopic,
   getNotificationTemplates,
+  testScheduleNotification,
 } from "./controller";
 
 const router = Router();
@@ -36,6 +38,13 @@ router.get(
   protect,
   auth("Super-admin", "Admin"),
   getCompletedNotifications
+);
+
+router.get(
+  "/all",
+  protect,
+  auth("Super-admin", "Admin"),
+  getAllNotifications
 );
 
 router.post(
@@ -78,6 +87,13 @@ router.post(
   protect,
   auth("Super-admin", "Admin"),
   sendNotificationToTopic
+);
+
+router.post(
+  "/test-schedule",
+  protect,
+  auth("Super-admin", "Admin"),
+  testScheduleNotification
 );
 
 // Client routes

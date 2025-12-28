@@ -4,6 +4,7 @@ import FirebaseService from "../../utils/firebase";
 import Client from "../client/dal";
 import ClientModel from "../client/model";
 import AppError from "../../utils/app_error";
+import { body, validationResult } from "express-validator";
 
 /**
  * Send test notification to all users
@@ -31,13 +32,14 @@ export const sendTestNotification: RequestHandler = async (req, res, next) => {
  */
 export const getScheduledNotifications: RequestHandler = async (req, res, next) => {
   try {
-    const scheduledJobs = NotificationJobManager.getScheduledNotificationJobs();
+    const scheduledJobs = await NotificationJobManager.getScheduledNotificationJobs();
     
     res.status(200).json({
       status: "SUCCESS",
       message: "Scheduled notification jobs retrieved successfully",
       data: {
         scheduledJobs,
+        count: scheduledJobs.length,
       },
     });
   } catch (error) {
@@ -57,6 +59,35 @@ export const getCompletedNotifications: RequestHandler = async (req, res, next) 
       message: "Completed notification jobs retrieved successfully",
       data: {
         completedJobs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get all notifications (scheduled + completed) with unified format
+ */
+export const getAllNotifications: RequestHandler = async (req, res, next) => {
+  try {
+    const allNotifications = await NotificationJobManager.getAllNotifications();
+    
+    // Serialize dates to ISO strings for JSON response
+    const serializedNotifications = allNotifications.map(notification => ({
+      ...notification,
+      executedAt: notification.executedAt ? notification.executedAt.toISOString() : null,
+    }));
+    
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "All notifications retrieved successfully",
+      data: {
+        notifications: serializedNotifications,
+        count: serializedNotifications.length,
+        scheduled: serializedNotifications.filter(n => n.status === 'scheduled').length,
+        pending: serializedNotifications.filter(n => n.status === 'pending').length,
+        completed: serializedNotifications.filter(n => n.status === 'completed').length,
       },
     });
   } catch (error) {
@@ -102,8 +133,18 @@ export const updateFCMToken: RequestHandler = async (req, res, next) => {
       return next(new AppError("Invalid FCM token", 400));
     }
 
-    // Update client's FCM token
-    await ClientModel.findByIdAndUpdate(clientId, { fcm_token }, { new: true });
+    // Get current environment from config
+    const currentEnvironment = process.env.NODE_ENV || "production";
+
+    // Update client's FCM token and environment
+    await ClientModel.findByIdAndUpdate(
+      clientId, 
+      { 
+        fcm_token,
+        environment: currentEnvironment
+      }, 
+      { new: true }
+    );
 
     res.status(200).json({
       status: "SUCCESS",
@@ -125,14 +166,22 @@ export const sendCustomNotification: RequestHandler = async (req, res, next) => 
       return next(new AppError("Title and body are required", 400));
     }
 
-    // Get all clients with FCM tokens
+    // Get current environment from config
+    const currentEnvironment = process.env.NODE_ENV || "production";
+    
+    // Get all clients with FCM tokens, filtered by current environment
     const allClients = await Client.getAllClients({});
-    const clientsWithTokens = allClients.filter(client => client.fcm_token && client.fcm_token.trim() !== '');
+    const clientsWithTokens = allClients.filter(client => {
+      const hasToken = client.fcm_token && client.fcm_token.trim() !== '';
+      // Users without environment field default to production only
+      const matchesEnvironment = (!client.environment && currentEnvironment === "production") || client.environment === currentEnvironment;
+      return hasToken && matchesEnvironment;
+    });
     
     if (clientsWithTokens.length === 0) {
       return res.status(200).json({
         status: "SUCCESS",
-        message: "No users with FCM tokens found",
+        message: `No users with FCM tokens found in ${currentEnvironment} environment`,
         data: {
           successCount: 0,
           failureCount: 0,
@@ -140,6 +189,10 @@ export const sendCustomNotification: RequestHandler = async (req, res, next) => 
         },
       });
     }
+    
+    // Add environment prefix to title for non-production
+    const envPrefix = currentEnvironment !== "production" ? `[${currentEnvironment.toUpperCase()}] ` : "";
+    const finalTitle = envPrefix + title;
 
     // Extract FCM tokens
     const fcmTokens = clientsWithTokens.map(client => client.fcm_token!).filter(token => token);
@@ -154,9 +207,9 @@ export const sendCustomNotification: RequestHandler = async (req, res, next) => 
       
       const result = await FirebaseService.sendNotificationToMultipleDevices(
         batch,
-        title,
+        finalTitle,
         body,
-        data || {}
+        { ...(data || {}), environment: currentEnvironment }
       );
 
       totalSuccess += result.successCount;
@@ -165,7 +218,7 @@ export const sendCustomNotification: RequestHandler = async (req, res, next) => 
 
     res.status(200).json({
       status: "SUCCESS",
-      message: "Custom notification sent successfully",
+      message: `Custom notification sent successfully to ${clientsWithTokens.length} users in ${currentEnvironment} environment`,
       data: {
         successCount: totalSuccess,
         failureCount: totalFailure,
@@ -188,28 +241,72 @@ export const sendNotificationToUsers: RequestHandler = async (req, res, next) =>
       return next(new AppError("Title, body, and user_ids array are required", 400));
     }
 
-    // Get specific clients by IDs
-    const clients = await Client.getAllClients({});
-    const targetClients = clients.filter(client => 
-      user_ids.includes(client._id.toString()) && 
-      client.fcm_token && 
-      client.fcm_token.trim() !== ''
-    );
+    // Get current environment from config
+    const currentEnvironment = process.env.NODE_ENV || "production";
+    
+    // Normalize user_ids to strings for comparison (handle both string and ObjectId formats)
+    const normalizedUserIds = user_ids.map(id => {
+      // If it's already a string, use it; otherwise convert to string
+      const idStr = typeof id === 'string' ? id : String(id);
+      // Remove any MongoDB ObjectId wrapper if present
+      return idStr.replace(/^ObjectId\(|\)$/g, '');
+    });
+    
+    console.log(`📤 Sending notification to ${normalizedUserIds.length} user(s) in ${currentEnvironment} environment`);
+    
+    // Get specific clients by IDs (get all clients without pagination limit)
+    const clients = await Client.getAllClients({ limit: 100000 });
+    
+    // Filter clients by the provided IDs
+    const allSelectedClients = clients.filter(client => {
+      const clientIdStr = String(client._id);
+      return normalizedUserIds.includes(clientIdStr);
+    });
+    
+    const targetClients = allSelectedClients.filter(client => {
+      const hasToken = client.fcm_token && client.fcm_token.trim() !== '';
+      // Users without environment field default to production only
+      const matchesEnvironment = (!client.environment && currentEnvironment === "production") || client.environment === currentEnvironment;
+      return hasToken && matchesEnvironment;
+    });
     
     if (targetClients.length === 0) {
+      // Check why no users were found (use already filtered allSelectedClients)
+      const clientsWithoutTokens = allSelectedClients.filter(client => !client.fcm_token || client.fcm_token.trim() === '');
+      const clientsWrongEnvironment = allSelectedClients.filter(client => {
+        const hasToken = client.fcm_token && client.fcm_token.trim() !== '';
+        if (!hasToken) return false;
+        const matchesEnvironment = (!client.environment && currentEnvironment === "production") || client.environment === currentEnvironment;
+        return !matchesEnvironment;
+      });
+      
+      let message = `No target users with FCM tokens found in ${currentEnvironment} environment`;
+      if (clientsWithoutTokens.length > 0 && clientsWrongEnvironment.length > 0) {
+        message += `. ${clientsWithoutTokens.length} user(s) don't have FCM tokens, ${clientsWrongEnvironment.length} user(s) are in a different environment.`;
+      } else if (clientsWithoutTokens.length > 0) {
+        message += `. ${clientsWithoutTokens.length} selected user(s) don't have FCM tokens registered.`;
+      } else if (clientsWrongEnvironment.length > 0) {
+        message += `. ${clientsWrongEnvironment.length} selected user(s) are in a different environment.`;
+      }
+      
       return res.status(200).json({
         status: "SUCCESS",
-        message: "No target users with FCM tokens found",
+        message,
         data: {
           successCount: 0,
           failureCount: 0,
-          totalUsers: 0,
+          totalUsers: user_ids.length,
+          eligibleUsers: 0,
         },
       });
     }
 
     // Extract FCM tokens
     const fcmTokens = targetClients.map(client => client.fcm_token!).filter(token => token);
+
+    // Add environment prefix to title for non-production
+    const envPrefix = currentEnvironment !== "production" ? `[${currentEnvironment.toUpperCase()}] ` : "";
+    const finalTitle = envPrefix + title;
 
     // Send notifications in batches
     const batchSize = 500;
@@ -221,9 +318,9 @@ export const sendNotificationToUsers: RequestHandler = async (req, res, next) =>
       
       const result = await FirebaseService.sendNotificationToMultipleDevices(
         batch,
-        title,
+        finalTitle,
         body,
-        data || {}
+        { ...(data || {}), environment: currentEnvironment }
       );
 
       totalSuccess += result.successCount;
@@ -255,11 +352,18 @@ export const sendNotificationToTopic: RequestHandler = async (req, res, next) =>
       return next(new AppError("Title, body, and topic are required", 400));
     }
 
+    // Get current environment from config
+    const currentEnvironment = process.env.NODE_ENV || "production";
+    
+    // Add environment prefix to title for non-production
+    const envPrefix = currentEnvironment !== "production" ? `[${currentEnvironment.toUpperCase()}] ` : "";
+    const finalTitle = envPrefix + title;
+
     const success = await FirebaseService.sendNotificationToTopic(
       topic,
-      title,
+      finalTitle,
       body,
-      data || {}
+      { ...(data || {}), environment: currentEnvironment }
     );
 
     res.status(200).json({
@@ -351,7 +455,7 @@ export const getNotificationStats: RequestHandler = async (req, res, next) => {
     const clientsWithTokensCount = clientsWithTokens.length;
 
     // Get scheduled jobs
-    const scheduledJobs = NotificationJobManager.getScheduledNotificationJobs();
+    const scheduledJobs = await NotificationJobManager.getScheduledNotificationJobs();
     const completedJobs = NotificationJobManager.getCompletedNotificationJobs();
 
     res.status(200).json({
@@ -368,5 +472,67 @@ export const getNotificationStats: RequestHandler = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+/**
+ * Test endpoint: Schedule notification for a game week with custom time (for testing)
+ */
+export const testScheduleNotification: RequestHandler = async (req, res, next) => {
+  try {
+    const { minutes_before = 3, game_week_id } = req.body; // Default to 3 minutes for testing
+    
+    const GameWeek = (await import("../game_week/dal")).default;
+    let gameWeek;
+    
+    // Get game week by ID if provided, otherwise try to get active, otherwise get first available
+    if (game_week_id) {
+      gameWeek = await GameWeek.getGameWeekById(game_week_id);
+    } else {
+      gameWeek = await GameWeek.getLiveGameWeek();
+      if (!gameWeek) {
+        // If no active game week, get the first available game week
+        const allGameWeeks = await GameWeek.getAllGameWeeks({ limit: 1 });
+        if (allGameWeeks.length > 0) {
+          gameWeek = allGameWeeks[0];
+        }
+      }
+    }
+    
+    if (!gameWeek) {
+      return next(new AppError("No game week found. Please provide a game_week_id", 404));
+    }
+
+    // Update the game week's transfer deadline to be (minutes_before + 1) minutes from now
+    // This ensures the notification time will be minutes_before minutes from now
+    const newDeadline = new Date(Date.now() + ((minutes_before + 1) * 60 * 1000));
+    
+    // Update the deadline in the game week object (temporarily for scheduling)
+    gameWeek.transfer_deadline = newDeadline;
+
+    // Convert minutes to hours (for the function parameter)
+    const hoursBefore = minutes_before / 60; // e.g., 3 minutes = 0.05 hours
+
+    // Schedule with custom time
+    await NotificationJobManager.scheduleTransferDeadlineReminder(gameWeek, hoursBefore);
+
+    const notificationTime = new Date(gameWeek.transfer_deadline.getTime() - (minutes_before * 60 * 1000));
+    const timeUntilNotification = Math.round((notificationTime.getTime() - Date.now()) / 1000 / 60);
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: `Test notification scheduled for ${minutes_before} minutes from now`,
+      data: {
+        gameWeekId: gameWeek._id,
+        gameWeek: gameWeek.game_week,
+        notificationTime: notificationTime.toISOString(),
+        transferDeadline: gameWeek.transfer_deadline.toISOString(),
+        minutesBefore: minutes_before,
+        timeUntilNotification: timeUntilNotification,
+        currentTime: new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    next(new AppError(error.message || "Failed to schedule test notification", 500));
   }
 };
