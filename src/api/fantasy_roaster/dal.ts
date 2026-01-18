@@ -143,6 +143,62 @@ export default class FantasyRoaster {
     }
   }
 
+  // Update player info (name, position, club, rating)
+  static async updatePlayerInfo(data: {
+    id: string;
+    pid: string;
+    pname?: string;
+    role?: string;
+    team?: {
+      tid: string;
+      tname: string;
+      logo: string;
+      fullname: string;
+      abbr: string;
+    };
+    rating?: number;
+  }) {
+    try {
+      const updateFields: any = {};
+      
+      if (data.pname !== undefined) {
+        updateFields["players.$.pname"] = data.pname;
+      }
+      if (data.role !== undefined) {
+        // Normalize role from abbreviation to full name
+        // Fantasy roaster should store full role names: Goalkeeper, Defender, Midfielder, Forward
+        const roleMap: { [key: string]: string } = {
+          'GK': 'Goalkeeper',
+          'DEF': 'Defender',
+          'MID': 'Midfielder',
+          'FWD': 'Forward',
+          'Goalkeeper': 'Goalkeeper',
+          'Defender': 'Defender',
+          'Midfielder': 'Midfielder',
+          'Forward': 'Forward'
+        };
+        const normalizedRole = roleMap[data.role.toUpperCase()] || roleMap[data.role] || data.role;
+        updateFields["players.$.role"] = normalizedRole;
+      }
+      if (data.team !== undefined) {
+        updateFields["players.$.team"] = data.team;
+      }
+      if (data.rating !== undefined) {
+        updateFields["players.$.rating"] = data.rating.toString();
+        updateFields["players.$.is_new"] = false;
+      }
+
+      const fantasyRoaster = await FantasyRoasterModel.updateOne(
+        { _id: data.id, "players.pid": data.pid },
+        { $set: updateFields },
+        { runValidators: true, new: true }
+      );
+      return fantasyRoaster;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Update Transfer Radar
   static async updateTransferRadar(data: {
     transfer_radar: boolean;

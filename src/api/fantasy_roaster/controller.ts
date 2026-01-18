@@ -198,17 +198,137 @@ export const updatePlayerTeam: RequestHandler = async (req, res, next) => {
     // Get body
     const { pid, team } = <FantasyRoasterRequest.IUpdatePlayerTeam>req.value;
 
-    // Update
+    // Update fantasy roaster
     const fantasyRoaster = await FantasyRoaster.updatePlayerTeam({
       id: req.params.id,
       pid,
       team,
     });
 
+    // Also update player club in all current client teams
+    const TeamDAL = (await import("../team/dal")).default;
+    const GameWeekTeamDAL = (await import("../game_week_team/dal")).default;
+
+    // Update player club in all current teams
+    const teamUpdateResult = await TeamDAL.updatePlayerClubInAllTeams(
+      pid,
+      team.tname, // club name
+      team.logo // club logo
+    );
+
+    // Update player club in all active (non-done) game week teams
+    const gameWeekTeamUpdateResult = await GameWeekTeamDAL.updatePlayerClubInActiveGameWeekTeams(
+      pid,
+      team.tname, // club name
+      team.logo // club logo
+    );
+
     // Respond
     res.status(200).json({
       status: "SUCCESS",
       message: "Player's team successfully updated",
+      data: {
+        teamsUpdated: teamUpdateResult.updatedTeams,
+        activeGameWeekTeamsUpdated: gameWeekTeamUpdateResult.updatedGameWeekTeams,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update player info (name, position, club, rating)
+export const updatePlayerInfo: RequestHandler = async (req, res, next) => {
+  try {
+    // Get body
+    const updateData = <FantasyRoasterRequest.IUpdatePlayerInfo>req.value;
+
+    // Update fantasy roaster
+    const fantasyRoaster = await FantasyRoaster.updatePlayerInfo({
+      id: req.params.id,
+      ...updateData,
+    });
+
+    // If club/team is being updated, also update it in all current client teams
+    if (updateData.team && updateData.pid) {
+      const TeamDAL = (await import("../team/dal")).default;
+      const GameWeekTeamDAL = (await import("../game_week_team/dal")).default;
+
+      // Update player club in all current teams
+      const teamUpdateResult = await TeamDAL.updatePlayerClubInAllTeams(
+        updateData.pid,
+        updateData.team.tname, // club name
+        updateData.team.logo // club logo
+      );
+
+      // Update player club in all active (non-done) game week teams
+      const gameWeekTeamUpdateResult = await GameWeekTeamDAL.updatePlayerClubInActiveGameWeekTeams(
+        updateData.pid,
+        updateData.team.tname, // club name
+        updateData.team.logo // club logo
+      );
+
+      // Respond with update details
+      return res.status(200).json({
+        status: "SUCCESS",
+        message: "Player information successfully updated",
+        data: {
+          teamsUpdated: teamUpdateResult.updatedTeams,
+          activeGameWeekTeamsUpdated: gameWeekTeamUpdateResult.updatedGameWeekTeams,
+        },
+      });
+    }
+
+    // Respond
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "Player information successfully updated",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get unique teams from a fantasy roaster
+export const getTeamsFromRoaster: RequestHandler = async (req, res, next) => {
+  try {
+    const roasterId = req.params.id;
+    
+    // Get the fantasy roaster
+    const roaster = await FantasyRoaster.getSingleRoaster(roasterId);
+    if (!roaster) {
+      return next(new AppError("Fantasy roaster not found", 404));
+    }
+
+    // Extract unique teams from players
+    const teamsMap = new Map<string, { tid: string; tname: string; logo: string; fullname: string; abbr: string }>();
+    
+    if (roaster.players && roaster.players.length > 0) {
+      roaster.players.forEach((player) => {
+        if (player.team && player.team.tid) {
+          // Use tid as the key to ensure uniqueness
+          if (!teamsMap.has(player.team.tid)) {
+            teamsMap.set(player.team.tid, {
+              tid: player.team.tid,
+              tname: player.team.tname || '',
+              logo: player.team.logo || '',
+              fullname: player.team.fullname || player.team.tname || '',
+              abbr: player.team.abbr || '',
+            });
+          }
+        }
+      });
+    }
+
+    // Convert map to array and sort by team name
+    const teams = Array.from(teamsMap.values()).sort((a, b) => 
+      a.tname.localeCompare(b.tname)
+    );
+
+    res.status(200).json({
+      status: "SUCCESS",
+      results: teams.length,
+      data: { teams },
     });
   } catch (error) {
     next(error);
