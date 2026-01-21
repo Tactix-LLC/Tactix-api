@@ -22,6 +22,8 @@ import {
   removePlayer,
   addPlayer,
   updatePlayerTeam,
+  updatePlayerInfo,
+  getTeamsFromRoaster,
 } from "./controller";
 
 // Validations
@@ -33,6 +35,7 @@ import {
   removePlayerValidation,
   addPlayerValidation,
   updatePlayerTeamValidation,
+  updatePlayerInfoValidation,
 } from "./validation";
 
 // Protect
@@ -282,6 +285,21 @@ router.patch(
   auth("Super-admin"),
   validator(updatePlayerTeamValidation),
   updatePlayerTeam
+);
+
+router.patch(
+  "/:id/player",
+  protect,
+  auth("Super-admin"),
+  validator(updatePlayerInfoValidation),
+  updatePlayerInfo
+);
+
+router.get(
+  "/:id/teams",
+  protect,
+  auth("Super-admin", "Admin"),
+  getTeamsFromRoaster
 );
 
 export default router;

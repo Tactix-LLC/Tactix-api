@@ -51,3 +51,18 @@ export const updatePlayerTeamValidation = Joi.object({
     abbr: Joi.string().required(),
   }).required(),
 });
+
+// Update player info (name, position, club, rating)
+export const updatePlayerInfoValidation = Joi.object({
+  pid: Joi.string().required(),
+  pname: Joi.string().optional(),
+  role: Joi.string().optional(),
+  rating: Joi.number().optional(),
+  team: Joi.object({
+    tid: Joi.string().required(),
+    tname: Joi.string().required(),
+    logo: Joi.string().required(),
+    fullname: Joi.string().required(),
+    abbr: Joi.string().required(),
+  }).optional(),
+});

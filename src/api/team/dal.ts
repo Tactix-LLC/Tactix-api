@@ -513,4 +513,27 @@ export default class TeamDAL {
       throw error;
     }
   }
+
+  // Update player club in all current teams
+  static async updatePlayerClubInAllTeams(
+    playerId: string,
+    club: string,
+    clubLogo: string
+  ): Promise<{ updatedTeams: number }> {
+    try {
+      // Update all teams that have this player
+      const result = await Team.updateMany(
+        { "players.pid": playerId },
+        {
+          $set: {
+            "players.$.club": club,
+            "players.$.club_logo": clubLogo,
+          },
+        }
+      );
+      return { updatedTeams: result.modifiedCount || 0 };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

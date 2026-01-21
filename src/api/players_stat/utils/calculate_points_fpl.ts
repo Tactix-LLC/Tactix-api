@@ -23,9 +23,28 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
   const pointSystem = settings.point_system;
   const playerStatArr: IPlayerStat[] = [];
 
+  // Helper function to normalize role to full name format
+  const normalizeRole = (role: string): string => {
+    const roleMap: { [key: string]: string } = {
+      'GK': 'Goalkeeper',
+      'DEF': 'Defender',
+      'MID': 'Midfielder',
+      'FWD': 'Forward',
+      'Goalkeeper': 'Goalkeeper',
+      'Defender': 'Defender',
+      'Midfielder': 'Midfielder',
+      'Forward': 'Forward'
+    };
+    const normalized = roleMap[role.toUpperCase()] || roleMap[role] || role;
+    return normalized;
+  };
+
   // Loop over players and calculate points based on FPL rules
   for (const player of playerStat) {
     const finalData: any = {};
+    
+    // Normalize player role to full name format
+    const normalizedRole = normalizeRole(player.role || 'Midfielder');
     
     // Calculate playing time points
     if (player.minutesplayed >= 60) {
@@ -38,7 +57,7 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
 
     // Calculate goal points by position
     if (player.goalscored > 0) {
-      switch (player.role) {
+      switch (normalizedRole) {
         case "Goalkeeper":
           finalData.goalscored = player.goalscored * pointSystem.goalkeeper_goal;
           break;
@@ -63,7 +82,7 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
 
     // Calculate clean sheet points
     if (player.minutesplayed >= 60 && player.cleansheet === 1) {
-      switch (player.role) {
+      switch (normalizedRole) {
         case "Goalkeeper":
           finalData.cleansheet = pointSystem.goalkeeper_clean_sheet;
           break;
@@ -81,7 +100,7 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     }
 
     // Calculate goalkeeper specific points
-    if (player.role === "Goalkeeper") {
+    if (normalizedRole === "Goalkeeper") {
       // Saves: 1 point for every 3 saves
       if (player.shotssaved > 0) {
         finalData.shotssaved = Math.floor(player.shotssaved / 3) * pointSystem.saves_per_3;
@@ -113,7 +132,7 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     finalData.owngoal = -ownGoalPenalty; // Ensure negative
     
     // Goals conceded (for goalkeepers and defenders) (always negative)
-    if (player.role === "Goalkeeper" || player.role === "Defender") {
+    if (normalizedRole === "Goalkeeper" || normalizedRole === "Defender") {
       const goalsConcededPenalty = Math.floor(player.goalsconceded / 2) * Math.abs(pointSystem.goals_conceded_per_2 || 1);
       finalData.goalsconceded = -goalsConcededPenalty; // Ensure negative
     } else {
@@ -151,11 +170,12 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     );
 
     // Create player stat object
+    // Use normalizedRole for position (PlayerStat expects: Goalkeeper, Defender, Midfielder, Forward)
     const playerStatObj: IPlayerStat = {
       pid: player.pid,
       full_name: player.pname,
       tname: player.tname,
-      position: player.role,
+      position: normalizedRole,
       ...finalData,
       fantasy_point,
       stat: { ...player },
