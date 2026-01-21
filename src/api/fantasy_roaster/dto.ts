@@ -85,5 +85,18 @@ declare global {
         abbr: string;
       };
     }
+    interface IUpdatePlayerInfo {
+      pid: string;
+      pname?: string;
+      role?: string;
+      team?: {
+        tid: string;
+        tname: string;
+        logo: string;
+        fullname: string;
+        abbr: string;
+      };
+      rating?: number;
+    }
   }
 }

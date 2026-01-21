@@ -1011,4 +1011,39 @@ export default class GameWeekTeamDAL {
       throw error;
     }
   }
+
+  // Update player club in all active (non-done) game week teams
+  static async updatePlayerClubInActiveGameWeekTeams(
+    playerId: string,
+    club: string,
+    clubLogo: string
+  ): Promise<{ updatedGameWeekTeams: number }> {
+    try {
+      // First, get all active game week IDs (where is_done is false)
+      const GameWeek = (await import("../game_week/model")).default;
+      const activeGameWeeks = await GameWeek.find({ is_done: false }).select("_id").lean();
+      const activeGameWeekIds = activeGameWeeks.map((gw: any) => gw._id);
+
+      if (activeGameWeekIds.length === 0) {
+        return { updatedGameWeekTeams: 0 };
+      }
+
+      // Update all game week teams that have this player and belong to active game weeks
+      const result = await GameWeekTeam.updateMany(
+        {
+          game_week_id: { $in: activeGameWeekIds },
+          "players.pid": playerId,
+        },
+        {
+          $set: {
+            "players.$.club": club,
+            "players.$.club_logo": clubLogo,
+          },
+        }
+      );
+      return { updatedGameWeekTeams: result.modifiedCount || 0 };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

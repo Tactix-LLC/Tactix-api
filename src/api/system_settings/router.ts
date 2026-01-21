@@ -3,6 +3,7 @@ import protect from "../../utils/protect";
 import auth from "../../utils/auth";
 import validator from "../../utils/validator";
 import {
+  getPublicAppStatus,
   getSystemSettings,
   updateSystemSettings,
   resetToDefaultSettings,
@@ -15,6 +16,9 @@ import {
 } from "./validator.js";
 
 const router = Router();
+
+// Public app status (no auth) - used by mobile app to decide whether to show season break screen
+router.get("/app-status", getPublicAppStatus);
 
 // Get system settings
 router.get("/", protect, auth("Super-admin"), getSystemSettings);
