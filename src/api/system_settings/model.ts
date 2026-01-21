@@ -96,6 +96,11 @@ export interface ISystemSettings extends Document {
     oauth_enabled: boolean;
     manual_data_override_enabled: boolean;
   };
+
+  // App status / season break
+  season_break_enabled: boolean;
+  season_break_title: string;
+  season_break_message: string;
   
   // Auto-join specific settings
   auto_join: {
@@ -248,6 +253,21 @@ const SystemSettingsSchema = new Schema<ISystemSettings>({
       type: Boolean,
       default: false,
     },
+  },
+
+  // App status / season break
+  season_break_enabled: {
+    type: Boolean,
+    default: false,
+  },
+  season_break_title: {
+    type: String,
+    default: "Season Break",
+  },
+  season_break_message: {
+    type: String,
+    default:
+      "The season has ended. We’re preparing the next season now. Please come back when the new season starts.",
   },
   
   auto_join: {

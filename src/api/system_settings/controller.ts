@@ -2,6 +2,33 @@ import { RequestHandler } from "express";
 import SystemSettings from "./model";
 
 /**
+ * Public app status (used by mobile app before auth)
+ * NOTE: No auth required.
+ */
+export const getPublicAppStatus: RequestHandler = async (req, res, next) => {
+  try {
+    let settings = await SystemSettings.findOne().sort({ created_at: -1 });
+    if (!settings) {
+      settings = await SystemSettings.create({});
+    }
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "App status retrieved successfully",
+      data: {
+        season_break_enabled: settings.season_break_enabled,
+        season_break_title: settings.season_break_title,
+        season_break_message: settings.season_break_message,
+        updated_at: settings.updated_at,
+        version: settings.version,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get system settings
  */
 export const getSystemSettings: RequestHandler = async (req, res, next) => {

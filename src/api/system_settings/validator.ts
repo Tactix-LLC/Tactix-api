@@ -18,6 +18,11 @@ export const updateSystemSettingsValidator = Joi.object({
     oauth_enabled: Joi.boolean().optional(),
     manual_data_override_enabled: Joi.boolean().optional(),
   }).optional(),
+
+  // App status / season break
+  season_break_enabled: Joi.boolean().optional(),
+  season_break_title: Joi.string().max(120).optional(),
+  season_break_message: Joi.string().max(1000).optional(),
 });
 
 export const updatePointSystemValidator = Joi.object({

@@ -210,16 +210,18 @@ export const updatePlayerTeam: RequestHandler = async (req, res, next) => {
     const GameWeekTeamDAL = (await import("../game_week_team/dal")).default;
 
     // Update player club in all current teams
+    // Use team.abbr (abbreviation) for club field, as client teams store abbreviations (e.g., "BRN", "ARS", "MCI")
     const teamUpdateResult = await TeamDAL.updatePlayerClubInAllTeams(
       pid,
-      team.tname, // club name
+      team.abbr, // club abbreviation (e.g., "BRN", "ARS", "MCI")
       team.logo // club logo
     );
 
     // Update player club in all active (non-done) game week teams
+    // Use team.abbr (abbreviation) for club field, as client teams store abbreviations (e.g., "BRN", "ARS", "MCI")
     const gameWeekTeamUpdateResult = await GameWeekTeamDAL.updatePlayerClubInActiveGameWeekTeams(
       pid,
-      team.tname, // club name
+      team.abbr, // club abbreviation (e.g., "BRN", "ARS", "MCI")
       team.logo // club logo
     );
 
@@ -255,16 +257,18 @@ export const updatePlayerInfo: RequestHandler = async (req, res, next) => {
       const GameWeekTeamDAL = (await import("../game_week_team/dal")).default;
 
       // Update player club in all current teams
+      // Use team.abbr (abbreviation) for club field, as client teams store abbreviations (e.g., "BRN", "ARS", "MCI")
       const teamUpdateResult = await TeamDAL.updatePlayerClubInAllTeams(
         updateData.pid,
-        updateData.team.tname, // club name
+        updateData.team.abbr, // club abbreviation (e.g., "BRN", "ARS", "MCI")
         updateData.team.logo // club logo
       );
 
       // Update player club in all active (non-done) game week teams
+      // Use team.abbr (abbreviation) for club field, as client teams store abbreviations (e.g., "BRN", "ARS", "MCI")
       const gameWeekTeamUpdateResult = await GameWeekTeamDAL.updatePlayerClubInActiveGameWeekTeams(
         updateData.pid,
-        updateData.team.tname, // club name
+        updateData.team.abbr, // club abbreviation (e.g., "BRN", "ARS", "MCI")
         updateData.team.logo // club logo
       );
 
