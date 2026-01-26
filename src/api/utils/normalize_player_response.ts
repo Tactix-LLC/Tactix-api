@@ -35,7 +35,7 @@ const STAT_NUMERIC_FIELDS = [
   "starting11",
 ] as const;
 
-const DEBUG_LOG = false; // set true to debug "String is not a subtype of num" (logs field types)
+const DEBUG_LOG = true; // set false to reduce logs; helps debug "String is not a subtype of num"
 
 function forceNum(val: unknown): number {
   if (val === undefined || val === null) return 0;
@@ -45,28 +45,55 @@ function forceNum(val: unknown): number {
 }
 
 function logStringAsNum(context: string, field: string, value: unknown): void {
-  if (!DEBUG_LOG) return;
   if (typeof value === "string") {
-    console.log(`[normalize_player] ${context} FIELD "${field}" is STRING (expected num): ${JSON.stringify(value)}`);
+    console.log(`[normalize_player] ${context} FIELD "${field}" was STRING (expected num), converted: ${JSON.stringify(value)}`);
   }
 }
 
-export function normalizePlayerForResponse(player: any): any {
-  if (!player || typeof player !== "object") return player;
-
-  const normalized: Record<string, any> = { ...player };
-
-  // Ensure pid and _id are strings (Flutter ClientPlayer expects String)
-  if (normalized.pid !== undefined && normalized.pid !== null) {
-    normalized.pid = String(normalized.pid);
+export function normalizePlayerForResponse(player: any, playerIndex?: number): any {
+  if (!player || typeof player !== "object") {
+    if (DEBUG_LOG) {
+      console.log(`[normalize_player] WARNING: player at index ${playerIndex ?? "?"} is null/undefined/non-object, skipping`);
+    }
+    return player;
   }
-  if (normalized._id !== undefined && normalized._id !== null) {
-    try {
-      normalized._id = typeof normalized._id === "object" && normalized._id?.toString
-        ? normalized._id.toString()
-        : String(normalized._id);
-    } catch {
-      normalized._id = String(normalized._id);
+
+  // Mongoose subdocs (e.g. from refresh flow) store schema keys on prototype – spread misses them.
+  // Convert to plain object first so pid, full_name, position, club, etc. are preserved.
+  let plain: Record<string, any>;
+  if (typeof (player as any).toObject === "function") {
+    plain = (player as any).toObject();
+  } else {
+    plain = { ...player };
+  }
+  const normalized: Record<string, any> = { ...plain };
+
+  // Ensure required String fields are always strings (never null) - Flutter ClientPlayer requires String, not String?
+  const requiredStringFields = ["pid", "_id", "position", "club", "full_name", "club_logo"] as const;
+  for (const field of requiredStringFields) {
+    if (normalized[field] === undefined || normalized[field] === null) {
+      normalized[field] = "";
+    } else {
+      // Convert to string if not already
+      if (field === "_id" && typeof normalized[field] === "object") {
+        try {
+          normalized[field] = normalized[field]?.toString ? normalized[field].toString() : String(normalized[field]);
+        } catch {
+          normalized[field] = String(normalized[field]);
+        }
+      } else {
+        normalized[field] = String(normalized[field]);
+      }
+    }
+  }
+
+  // Ensure required bool fields are always boolean (never null) - Flutter ClientPlayer requires bool, not bool?
+  const requiredBoolFields = ["is_bench", "is_captain", "is_vice_captain", "is_switched"] as const;
+  for (const field of requiredBoolFields) {
+    if (normalized[field] === undefined || normalized[field] === null) {
+      normalized[field] = false;
+    } else {
+      normalized[field] = Boolean(normalized[field]);
     }
   }
 
@@ -83,7 +110,15 @@ export function normalizePlayerForResponse(player: any): any {
       logStringAsNum("stat", field, v);
       st[field] = forceNum(v);
     }
+    for (const k of Object.keys(st)) {
+      if (k.startsWith("$") || k.startsWith("__")) delete st[k];
+    }
     normalized.stat = st;
+  }
+
+  // Strip Mongoose internals (__parentArray, __index, $isNew, etc.) – don't send to client
+  for (const key of Object.keys(normalized)) {
+    if (key.startsWith("$") || key.startsWith("__")) delete normalized[key];
   }
 
   return normalized;
