@@ -20,7 +20,10 @@ import TransferHistory from "../transfer_history/dal";
 import player_stats from "./utils/player_stats";
 import calculate_fantasy_points from "./utils/calculate_fantasy_points";
 import joinedActiveGW from "./utils/joined_active_gw";
-import { normalizeTeamForResponse } from "../utils/normalize_player_response";
+import {
+  normalizeTeamForResponse,
+  normalizePlayerForResponse,
+} from "../utils/normalize_player_response";
 
 // Create team
 export const createTeam: RequestHandler = async (req, res, next) => {
@@ -118,10 +121,18 @@ export const getClientTeam: RequestHandler = async (req, res, next) => {
       ? await joinedActiveGW(user, activeGameWeek)
       : await joinedActiveGW(user);
 
-    // Response (do NOT normalize – "my team" works with raw; normalize only for leaderboard "other's team")
+    // Normalize so users with stringified nums in DB get correct types (fixes "String is not a subtype of num")
+    const normalizedTeam = normalizeTeamForResponse(team);
+
+    console.log("[my_team] GET /team/clientteam – clientId=%s, players=%d, team.budget type=%s, team.total_fantasy_point type=%s",
+      (user as any)._id?.toString?.() || (user as any).id,
+      (normalizedTeam as any).players?.length ?? 0,
+      typeof (normalizedTeam as any).budget,
+      typeof (normalizedTeam as any).total_fantasy_point);
+
     res.status(200).json({
       status: "SUCCESS",
-      data: { team, join_status },
+      data: { team: normalizedTeam, join_status },
     });
   } catch (error) {
     // Add more specific error handling here if needed
@@ -759,18 +770,28 @@ export const refereshPoints: RequestHandler = async (req, res, next) => {
     const playerStats = await player_stats(matchIds);
     const players = await calculate_fantasy_points(client.players, playerStats);
 
+    // Normalize so users with stringified nums get correct types (fixes "String is not a subtype of num" on My team)
+    const normalizedPlayers = players.map((p: any) => normalizePlayerForResponse(p));
+
+    // Team in refresh is projected (no players). Flutter builds ClientTeam from team.budget, team.total_fantasy_point – normalize those too.
+    const normalizedTeam = normalizeTeamForResponse(team);
+
     // Captain/vice-captain doubling logic is already applied in calculate_fantasy_points
     // which uses calculate_fpl_points_legacy that doubles captain points during live updates
-    // (do NOT normalize players here – "my team" refresh was fine; normalization only for leaderboard "other's team")
 
-    // Respond
+    console.log("[my_team] /team/refresh – clientId=%s, players=%d, team.budget type=%s, team.total_fantasy_point type=%s",
+      (user as any)._id?.toString?.() || user?.id,
+      normalizedPlayers.length,
+      typeof (normalizedTeam as any).budget,
+      typeof (normalizedTeam as any).total_fantasy_point);
+
     res.status(200).json({
       status: "SUCCESS",
-      results: players.length,
+      results: normalizedPlayers.length,
       joinedActiveGameWeek: true,
       data: {
-        players,
-        team,
+        players: normalizedPlayers,
+        team: normalizedTeam,
       },
     });
   } catch (error) {
