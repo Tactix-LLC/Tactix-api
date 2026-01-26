@@ -20,6 +20,7 @@ import TransferHistory from "../transfer_history/dal";
 import player_stats from "./utils/player_stats";
 import calculate_fantasy_points from "./utils/calculate_fantasy_points";
 import joinedActiveGW from "./utils/joined_active_gw";
+import { normalizeTeamForResponse } from "../utils/normalize_player_response";
 
 // Create team
 export const createTeam: RequestHandler = async (req, res, next) => {
@@ -117,7 +118,7 @@ export const getClientTeam: RequestHandler = async (req, res, next) => {
       ? await joinedActiveGW(user, activeGameWeek)
       : await joinedActiveGW(user);
 
-    // Response
+    // Response (do NOT normalize – "my team" works with raw; normalize only for leaderboard "other's team")
     res.status(200).json({
       status: "SUCCESS",
       data: { team, join_status },
@@ -177,11 +178,14 @@ export const getTeamByClientID: RequestHandler = async (req, res, next) => {
         new AppError("There is no client with the specified ID", 404)
       );
 
+    // Normalize numeric fields before responding
+    const normalizedTeam = normalizeTeamForResponse(team);
+
     // Respond
     res.status(200).json({
       status: "SUCCESS",
       data: {
-        team,
+        team: normalizedTeam,
       },
     });
   } catch (error) {
@@ -757,6 +761,7 @@ export const refereshPoints: RequestHandler = async (req, res, next) => {
 
     // Captain/vice-captain doubling logic is already applied in calculate_fantasy_points
     // which uses calculate_fpl_points_legacy that doubles captain points during live updates
+    // (do NOT normalize players here – "my team" refresh was fine; normalization only for leaderboard "other's team")
 
     // Respond
     res.status(200).json({

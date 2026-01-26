@@ -17,6 +17,7 @@ import IGameWeekTeamDoc from "./dto";
 import player_stats from "../team/utils/player_stats";
 import calculate_fantasy_points from "../team/utils/calculate_fantasy_points";
 import live_rank from "./utils/live_rank";
+import { normalizeGameWeekTeamForResponse } from "../utils/normalize_player_response";
 
 // Create game-week-team
 export const joinGameWeek: RequestHandler = async (req, res, next) => {
@@ -489,10 +490,13 @@ export const getByGameWeekAndClientId: RequestHandler = async (
       return next(new AppError("No game week found", 404));
     }
 
+    // Normalize numeric fields before responding (fixes Flutter "String is not a subtype of num")
+    const normalizedGameWeek = normalizeGameWeekTeamForResponse(gameWeek);
+
     //Respoonse
     res.status(200).json({
       status: "SUCCESS",
-      data: { gameWeek },
+      data: { gameWeek: normalizedGameWeek },
     });
   } catch (err) {
     next(err);
@@ -534,11 +538,14 @@ export const getClientGameweekTeam: RequestHandler = async (req, res, next) => {
       });
     }
 
+    // Normalize numeric fields before responding (fixes Flutter "String is not a subtype of num")
+    const normalizedGameWeekTeam = normalizeGameWeekTeamForResponse(gameWeekTeam);
+
     // Respond
     res.status(200).json({
       status: "SUCCESS",
       data: {
-        gameWeekTeam,
+        gameWeekTeam: normalizedGameWeekTeam,
       },
     });
   } catch (error) {
@@ -560,11 +567,16 @@ export const getClientGameWeekTeams: RequestHandler = async (
       client.id
     );
 
+    // Normalize numeric fields for all game week teams
+    const normalizedClientGameWeeks = clientGameWeeks.map((gameWeek: any) =>
+      normalizeGameWeekTeamForResponse(gameWeek)
+    );
+
     // Response
     res.status(200).json({
       status: "SUCCESS",
-      result: clientGameWeeks.length,
-      data: { clientGameWeeks },
+      result: normalizedClientGameWeeks.length,
+      data: { clientGameWeeks: normalizedClientGameWeeks },
     });
   } catch (error) {
     next(error);
