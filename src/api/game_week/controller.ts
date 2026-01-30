@@ -22,63 +22,98 @@ import AutoJoinJobManager from "./utils/auto_join_job";
 import NotificationJobManager from "./utils/notification_job";
 import GameWeekCompletionJobManager from "./utils/gameweek_completion_job";
 
+/** Fetch all matches for a round. Entity Sport: page N typically has round N or N-1. */
+async function fetchMatchesForRound(cid: string, round: string): Promise<any[]> {
+  const all: any[] = [];
+  const roundNum = Number(round) || 1;
+  let page = Math.max(1, roundNum - 1);
+  const base = configs.entity_sport?.url ?? "(no url)";
+  console.log(`[gw_create] fetchMatchesForRound base=${base} cid=${cid} round=${round} startPage=${page}`);
+  while (page <= 50) {
+    const url = `${configs.entity_sport.url}/competition/${cid}/matches?token=${configs.entity_sport.token}&paged=${page}`;
+    let res: any;
+    try {
+      res = await axios.get(url);
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const statusText = e?.response?.statusText;
+      const data = e?.response?.data;
+      console.log(`[gw_create] fetchMatchesForRound page=${page} axios error: status=${status} statusText=${statusText} data=${JSON.stringify(data ?? {}).slice(0, 200)}`);
+      if (status === 404) {
+        console.log(`[gw_create] fetchMatchesForRound 404 on page ${page}, stopping. total matches=${all.length}`);
+        break;
+      }
+      throw e;
+    }
+    if (res.data.status !== "ok") {
+      console.log(`[gw_create] fetchMatchesForRound page=${page} status!==ok: ${res.data.status}`);
+      break;
+    }
+    const items = res.data.response?.items ?? [];
+    if (items.length === 0) {
+      console.log(`[gw_create] fetchMatchesForRound page=${page} empty items, stopping. total=${all.length}`);
+      break;
+    }
+    const forRound = items.filter((m: any) => {
+      const r = m.round;
+      return r === round || r === roundNum || String(r) === String(round);
+    });
+    if (all.length === 0 && items.length > 0) {
+      const sample = items.slice(0, 2).map((m: any) => ({ round: m.round }));
+      console.log(`[gw_create] fetchMatchesForRound page=${page} sample rounds: ${JSON.stringify(sample)}`);
+    }
+    all.push(...forRound);
+    console.log(`[gw_create] fetchMatchesForRound page=${page} items=${items.length} forRound=${forRound.length} total=${all.length}`);
+    // Stop when we've passed the target round (e.g. page had round 25, we want 24)
+    if (forRound.length === 0 && items.length > 0) {
+      const maxRound = Math.max(...items.map((m: any) => Number(m.round) || 0));
+      if (maxRound > roundNum) {
+        console.log(`[gw_create] fetchMatchesForRound page=${page} maxRound=${maxRound} > ${roundNum}, stopping.`);
+        break;
+      }
+    }
+    page++;
+  }
+  console.log(`[gw_create] fetchMatchesForRound done: round=${round} total=${all.length} pagesChecked=${page - 1}`);
+  return all;
+}
+
 // Create game weeks
 export const createGameWeek: RequestHandler = async (req, res, next) => {
   try {
-    // Incoming data
     const { game_week, season_id, competition_id, is_free } = <
       GameWeekRequest.ICreateGameWeek
     >req.value;
+    console.log(`[gw_create] createGameWeek START game_week=${game_week} season_id=${season_id} competition_id=${competition_id} is_free=${is_free}`);
 
-    // Check if there is a game week created using the name
     const checkGameWeek = await GameWeek.getGameWeek(game_week);
-    if (checkGameWeek) return next(new AppError("Game already exists", 400));
+    if (checkGameWeek) {
+      console.log(`[gw_create] createGameWeek FAIL game already exists: ${game_week}`);
+      return next(new AppError("Game already exists", 400));
+    }
 
-    // Check season exists
     const season = await Season.getById(season_id);
-    if (!season)
+    if (!season) {
+      console.log(`[gw_create] createGameWeek FAIL unknown season: ${season_id}`);
       return next(
         new AppError(
           "Unknown season selected. Make sure there's a season with the specified season id",
           400
         )
       );
-
-    // Check competition exists
-    const competition = await Competition.getCompetition(competition_id);
-    if (!competition)
-      return next(new AppError("Unknown competition selected", 400));
-
-    // Get all matches for the specific round by fetching multiple pages
-    let allMatches: any[] = [];
-    let currentPage = parseInt(game_week);
-    let hasMorePages = true;
-    let maxPagesChecked = 0;
-    
-    while (hasMorePages && maxPagesChecked < 10) { // Safety limit to prevent infinite loops
-      const competitionMatches = await axios.get(
-        `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${currentPage}`
-      );
-
-      if (competitionMatches.data.status !== "ok") {
-        break; // Stop if API returns error
-      }
-
-      const pageMatches = competitionMatches.data.response.items;
-      const roundMatchesFromPage = pageMatches.filter((match: any) => match.round === game_week);
-      
-      // Add matches from this page
-      allMatches.push(...roundMatchesFromPage);
-      
-      // Check if we should continue to next page
-      // If this page has matches from our round, continue to next page
-      // If this page has no matches from our round, we've found all matches
-      hasMorePages = roundMatchesFromPage.length > 0;
-      currentPage++;
-      maxPagesChecked++;
     }
-    
+
+    const competition = await Competition.getCompetition(competition_id);
+    if (!competition) {
+      console.log(`[gw_create] createGameWeek FAIL unknown competition: ${competition_id}`);
+      return next(new AppError("Unknown competition selected", 400));
+    }
+    console.log(`[gw_create] createGameWeek fetching matches cid=${competition.cid} game_week=${game_week}`);
+
+    const allMatches = await fetchMatchesForRound(competition.cid, String(game_week));
+    console.log(`[gw_create] createGameWeek fetchMatchesForRound returned ${allMatches.length} matches`);
     if (allMatches.length === 0) {
+      console.log(`[gw_create] createGameWeek FAIL no matches for round ${game_week}`);
       return next(new AppError(`No matches found for round ${game_week}`, 404));
     }
 
@@ -91,23 +126,22 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
     // Last match (from the specific round)
     const lastMatch = allMatches[allMatches.length - 1];
 
-    // Check if there is an active game week
     const activeGameweek = await GameWeek.getLiveGameWeek();
+    console.log(`[gw_create] createGameWeek activeGameweek=${activeGameweek ? activeGameweek.game_week : "none"}`);
 
-    // Check if there is an active game week and the last match of the game week ends
     if (activeGameweek) {
-      // Previous matches
-      const previousCompetitionMatches = await axios.get(
-        `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${activeGameweek.game_week}`
+      console.log(`[gw_create] createGameWeek fetching previous round matches for GW ${activeGameweek.game_week}`);
+      const previousRoundMatches = await fetchMatchesForRound(
+        competition.cid,
+        String(activeGameweek.game_week)
       );
-
-      const previousAllMatches = previousCompetitionMatches.data.response.items;
-      const previousRoundMatches = previousAllMatches.filter((match: any) => match.round === activeGameweek.game_week);
-      
+      console.log(`[gw_create] createGameWeek previous round matches=${previousRoundMatches.length}`);
       if (previousRoundMatches.length > 0) {
         const previousLastMatch = previousRoundMatches[previousRoundMatches.length - 1];
-
-        if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
+        const lastEnd = new Date(previousLastMatch.dateend).getTime();
+        const now = Date.now();
+        if (lastEnd > now) {
+          console.log(`[gw_create] createGameWeek FAIL current GW not done lastEnd=${lastEnd} now=${now}`);
           return next(
             new AppError(
               "The current game week is not done yet. Please create a new game week once the current game week ends",
@@ -118,7 +152,6 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       }
     }
 
-    // First match of the game week (from the specific round)
     const firstMatch = allMatches[0];
 
     // Check game week(from request body) is same as the round in the first index of 'response'
@@ -167,7 +200,7 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       console.error(`❌ Failed to schedule transfer deadline reminder for game week ${gameWeek.game_week}:`, error);
     }
 
-    // Response
+    console.log(`[gw_create] createGameWeek SUCCESS game_week=${gameWeek.game_week} id=${gameWeek._id}`);
     res.status(201).json({
       status: "SUCCESS",
       date: new Date(Date.now()),
@@ -175,8 +208,9 @@ export const createGameWeek: RequestHandler = async (req, res, next) => {
       data: { gameWeek },
     });
   } catch (error: any) {
+    console.log(`[gw_create] createGameWeek CATCH error=${error?.message} response=${error?.response ? { status: error.response.status, statusText: error.response.statusText, data: error.response.data } : "none"}`);
     if (error.response) {
-      next(new AppError(error.response.data.response, error.response.status));
+      next(new AppError(error.response.data?.response ?? error.message, error.response.status));
     } else {
       next(error);
     }
@@ -221,21 +255,20 @@ export const createGameWeekManual: RequestHandler = async (req, res, next) => {
 
     // Check if there is an active game week and the last match of the game week ends
     if (activeGameweek) {
-      // Previous matches
-      const previousCompetitionMatches = await axios.get(
-        `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${activeGameweek.game_week}`
+      const previousRoundMatches = await fetchMatchesForRound(
+        competition.cid,
+        String(activeGameweek.game_week)
       );
-
-      const previousLastMatch =
-        previousCompetitionMatches.data.response.items[9];
-
-      if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
-        return next(
-          new AppError(
-            "The current game week is not done yet. Please create a new game week once the current game week ends",
-            400
-          )
-        );
+      if (previousRoundMatches.length > 0) {
+        const previousLastMatch = previousRoundMatches[previousRoundMatches.length - 1];
+        if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
+          return next(
+            new AppError(
+              "The current game week is not done yet. Please create a new game week once the current game week ends",
+              400
+            )
+          );
+        }
       }
     }
 
@@ -332,21 +365,20 @@ export const createDoubleGameWeek: RequestHandler = async (req, res, next) => {
 
     // Check if there is an active game week and the last match of the game week ends
     if (activeGameweek) {
-      // Previous matches
-      const previousCompetitionMatches = await axios.get(
-        `${configs.entity_sport.url}/competition/${competition.cid}/matches?token=${configs.entity_sport.token}&paged=${activeGameweek.game_week}`
+      const previousRoundMatches = await fetchMatchesForRound(
+        competition.cid,
+        String(activeGameweek.game_week)
       );
-
-      const previousLastMatch =
-        previousCompetitionMatches.data.response.items[9];
-
-      if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
-        return next(
-          new AppError(
-            "The current game week is not done yet. Please create a new game week once the current game week ends",
-            400
-          )
-        );
+      if (previousRoundMatches.length > 0) {
+        const previousLastMatch = previousRoundMatches[previousRoundMatches.length - 1];
+        if (new Date(previousLastMatch.dateend).getTime() > Date.now()) {
+          return next(
+            new AppError(
+              "The current game week is not done yet. Please create a new game week once the current game week ends",
+              400
+            )
+          );
+        }
       }
     }
 
