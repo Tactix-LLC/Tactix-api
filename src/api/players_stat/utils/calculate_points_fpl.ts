@@ -23,20 +23,31 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
   const pointSystem = settings.point_system;
   const playerStatArr: IPlayerStat[] = [];
 
-  // Helper function to normalize role to full name format
+  // Canonical positions allowed by PlayerStat schema
+  const ALLOWED_POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'] as const;
+
   const normalizeRole = (role: string): string => {
+    if (!role || typeof role !== 'string') return 'Midfielder';
+    const r = role.trim();
     const roleMap: { [key: string]: string } = {
-      'GK': 'Goalkeeper',
-      'DEF': 'Defender',
-      'MID': 'Midfielder',
-      'FWD': 'Forward',
-      'Goalkeeper': 'Goalkeeper',
-      'Defender': 'Defender',
-      'Midfielder': 'Midfielder',
-      'Forward': 'Forward'
+      'GK': 'Goalkeeper', 'G': 'Goalkeeper', 'GOALKEEPER': 'Goalkeeper', 'Goalkeeper': 'Goalkeeper', 'KEEPER': 'Goalkeeper',
+      'DEF': 'Defender', 'D': 'Defender', 'DEFENDER': 'Defender', 'Defender': 'Defender',
+      'CB': 'Defender', 'LB': 'Defender', 'RB': 'Defender', 'LWB': 'Defender', 'RWB': 'Defender',
+      'CENTRE BACK': 'Defender', 'CENTER BACK': 'Defender', 'LEFT BACK': 'Defender', 'RIGHT BACK': 'Defender',
+      'FULL BACK': 'Defender', 'WING BACK': 'Defender',
+      'MID': 'Midfielder', 'M': 'Midfielder', 'MIDFIELDER': 'Midfielder', 'Midfielder': 'Midfielder',
+      'CM': 'Midfielder', 'CDM': 'Midfielder', 'CAM': 'Midfielder', 'LM': 'Midfielder', 'RM': 'Midfielder',
+      'CENTRAL MIDFIELDER': 'Midfielder', 'DEFENSIVE MIDFIELDER': 'Midfielder', 'ATTACKING MIDFIELDER': 'Midfielder',
+      'LEFT MIDFIELDER': 'Midfielder', 'RIGHT MIDFIELDER': 'Midfielder', 'WINGER': 'Midfielder',
+      'LEFT WINGER': 'Midfielder', 'RIGHT WINGER': 'Midfielder',
+      'FWD': 'Forward', 'F': 'Forward', 'FORWARD': 'Forward', 'Forward': 'Forward',
+      'ST': 'Forward', 'CF': 'Forward', 'SS': 'Forward',
+      'STRIKER': 'Forward', 'ATTACKER': 'Forward', 'CENTRE FORWARD': 'Forward', 'CENTER FORWARD': 'Forward',
+      'SECOND STRIKER': 'Forward', 'LEFT WING': 'Forward', 'RIGHT WING': 'Forward',
     };
-    const normalized = roleMap[role.toUpperCase()] || roleMap[role] || role;
-    return normalized;
+    const upper = r.toUpperCase();
+    const normalized = roleMap[upper] || roleMap[r] || roleMap[r.charAt(0).toUpperCase() + r.slice(1).toLowerCase()] || r;
+    return ALLOWED_POSITIONS.includes(normalized as any) ? normalized : 'Midfielder';
   };
 
   // Loop over players and calculate points based on FPL rules
