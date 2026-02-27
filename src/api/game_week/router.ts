@@ -30,6 +30,9 @@ import {
   updateStatus,
   updateGameWeekIntervalTime,
   addMatchId,
+  removeMatch,
+  browseMatches,
+  getGameWeekMatches,
   updateDeadlines,
   triggerAutoJoin,
   getAutoJoinStatus,
@@ -141,6 +144,27 @@ router.patch(
   auth("Super-admin"),
   validator(addMatchIdValidation),
   addMatchId
+);
+
+router.delete(
+  "/:id/matches/:matchId",
+  protect,
+  auth("Super-admin"),
+  removeMatch
+);
+
+router.get(
+  "/:id/browse-matches",
+  protect,
+  auth("Super-admin", "Admin"),
+  browseMatches
+);
+
+router.get(
+  "/:id/matches",
+  protect,
+  auth("Super-admin", "Admin"),
+  getGameWeekMatches
 );
 
 // Auto-join routes
