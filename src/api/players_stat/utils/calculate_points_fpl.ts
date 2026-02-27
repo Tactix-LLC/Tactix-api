@@ -57,14 +57,23 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     // Normalize player role to full name format
     const normalizedRole = normalizeRole(player.role || 'Midfielder');
     
-    // Calculate playing time points
-    if (player.minutesplayed >= 60) {
-      finalData.playing_time = pointSystem.playing_60_plus_minutes;
-    } else if (player.minutesplayed > 0) {
-      finalData.playing_time = pointSystem.playing_under_60_minutes;
-    } else {
-      finalData.playing_time = 0;
+    // For DGW, starting11 counts how many matches the player started (e.g. 2 for both DGW games).
+    // Use (starting11 + substitute) as total appearances so we can award playing-time points
+    // once per game rather than once for the total minutes.
+    const numAppearances = Math.max(
+      1,
+      (player.starting11 || 0) + (player.substitute || 0)
+    );
+    const avgMinutesPerGame = player.minutesplayed / numAppearances;
+
+    // Calculate playing time points per appearance
+    let pointsPerAppearance = 0;
+    if (avgMinutesPerGame >= 60) {
+      pointsPerAppearance = pointSystem.playing_60_plus_minutes;
+    } else if (avgMinutesPerGame > 0) {
+      pointsPerAppearance = pointSystem.playing_under_60_minutes;
     }
+    finalData.playing_time = pointsPerAppearance * numAppearances;
 
     // Calculate goal points by position
     if (player.goalscored > 0) {
@@ -91,17 +100,19 @@ export default async (playerStat: Player[]): Promise<IPlayerStat[]> => {
     // Calculate assist points
     finalData.assist = player.assist * pointSystem.assist;
 
-    // Calculate clean sheet points
-    if (player.minutesplayed >= 60 && player.cleansheet === 1) {
+    // Calculate clean sheet points.
+    // cleansheet is cumulative across matches (0, 1, or 2 in a DGW).
+    // Award points once per clean sheet, provided the player averaged 60+ min/game.
+    if (avgMinutesPerGame >= 60 && player.cleansheet > 0) {
       switch (normalizedRole) {
         case "Goalkeeper":
-          finalData.cleansheet = pointSystem.goalkeeper_clean_sheet;
+          finalData.cleansheet = player.cleansheet * pointSystem.goalkeeper_clean_sheet;
           break;
         case "Defender":
-          finalData.cleansheet = pointSystem.defender_clean_sheet;
+          finalData.cleansheet = player.cleansheet * pointSystem.defender_clean_sheet;
           break;
         case "Midfielder":
-          finalData.cleansheet = pointSystem.midfielder_clean_sheet;
+          finalData.cleansheet = player.cleansheet * pointSystem.midfielder_clean_sheet;
           break;
         default:
           finalData.cleansheet = 0;

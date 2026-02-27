@@ -14,34 +14,45 @@ import calculate_team_points from "../game_week/utils/calculate_points";
 // Direct fantasy points calculation (same logic as frontend)
 function calculateFantasyPoints(player: any): number {
   let points = 0;
-  
-  // Playing time points
-  if (player.minutesplayed >= 60) points += 2;
-  else if (player.minutesplayed > 0) points += 1;
-  
+
+  // Use actual minutes from stat object if available (outer-level may store points, not raw minutes)
+  const actualMinutes = player.stat?.minutesplayed ?? player.minutesplayed ?? 0;
+  // For DGW, starting11 is cumulative appearances count; use it for per-game time points
+  const startingApps = player.stat?.starting11 ?? player.starting11 ?? player.starting ?? 0;
+  const subApps = player.stat?.substitute ?? player.substitute ?? 0;
+  const numAppearances = Math.max(1, startingApps + subApps);
+  const avgMins = actualMinutes / numAppearances;
+
+  // Playing time points: award per appearance
+  if (avgMins >= 60) points += 2 * numAppearances;
+  else if (avgMins > 0) points += 1 * numAppearances;
+
   // Goals (position-based)
   const goals = player.goalscored || 0;
   if (player.position === 'Goalkeeper') points += goals * 10;
   else if (player.position === 'Defender') points += goals * 6;
   else if (player.position === 'Midfielder') points += goals * 5;
   else if (player.position === 'Forward') points += goals * 4;
-  
+
   // Assists
   points += (player.assist || 0) * 3;
-  
-  // Clean sheets
-  if (player.position === 'Goalkeeper' || player.position === 'Defender') {
-    points += (player.cleansheet || 0) * 4;
-  } else if (player.position === 'Midfielder') {
-    points += (player.cleansheet || 0) * 1;
+
+  // Clean sheets: cumulative count (can be 2 in DGW), require avg 60+ min per game
+  const cleansheets = player.cleansheet || 0;
+  if (avgMins >= 60 && cleansheets > 0) {
+    if (player.position === 'Goalkeeper' || player.position === 'Defender') {
+      points += cleansheets * 4;
+    } else if (player.position === 'Midfielder') {
+      points += cleansheets * 1;
+    }
   }
-  
+
   // Goalkeeper saves (per 3)
   points += Math.floor((player.shotssaved || 0) / 3);
-  
+
   // Penalty saves
   points += (player.penaltysaved || 0) * 5;
-  
+
   // Negative points
   points -= (player.yellowcard || 0) * 1;
   points -= (player.redcard || 0) * 3;
@@ -510,14 +521,20 @@ export const recalculateTeamPointsForGameWeek: RequestHandler = async (req, res,
           if (latestPlayerStat) {
             // Calculate minutes played points based on actual minutes played, not fantasy points
             // IMPORTANT: stat.minutesplayed contains actual minutes from raw stats (source of truth)
-            // latestPlayerStat.minutesplayed at top level might contain points (0,1,2) from old calculations
-            // Always prioritize stat.minutesplayed which is the raw stat value from the API
+            // latestPlayerStat.minutesplayed at top level might contain points from old calculations
             const actualMinutesPlayed = latestPlayerStat.stat?.minutesplayed ?? latestPlayerStat.minutesplayed ?? 0;
+            // For DGW, starting11 counts appearances (e.g. 2 if started both games)
+            const numApps = Math.max(
+              1,
+              (latestPlayerStat.stat?.starting11 ?? latestPlayerStat.starting11 ?? 0) +
+              (latestPlayerStat.stat?.substitute ?? latestPlayerStat.substitute ?? 0)
+            );
+            const avgMinsPerGame = actualMinutesPlayed / numApps;
             let minutesPlayedPoints = 0;
-            if (actualMinutesPlayed >= 60) {
-              minutesPlayedPoints = 2;
-            } else if (actualMinutesPlayed > 0) {
-              minutesPlayedPoints = 1;
+            if (avgMinsPerGame >= 60) {
+              minutesPlayedPoints = 2 * numApps;
+            } else if (avgMinsPerGame > 0) {
+              minutesPlayedPoints = 1 * numApps;
             }
             
             // Update the team player: outer level = calculated points, stat = raw stats
@@ -529,7 +546,10 @@ export const recalculateTeamPointsForGameWeek: RequestHandler = async (req, res,
               minutesplayed: minutesPlayedPoints, // Points for minutes (based on actual minutes played)
               goalscored: latestPlayerStat.goalscored * (teamPlayer.position === 'Goalkeeper' ? 10 : teamPlayer.position === 'Defender' ? 6 : teamPlayer.position === 'Midfielder' ? 5 : 4), // Goal points
               assist: (latestPlayerStat.assist || 0) * 3, // Assist points
-              cleansheet: (latestPlayerStat.cleansheet || 0) * (teamPlayer.position === 'Goalkeeper' || teamPlayer.position === 'Defender' ? 4 : teamPlayer.position === 'Midfielder' ? 1 : 0),
+              // cleansheet is cumulative (0,1,2 in DGW); only award if avg 60+ min/game
+              cleansheet: (avgMinsPerGame >= 60 && (latestPlayerStat.cleansheet || 0) > 0)
+                ? (latestPlayerStat.cleansheet || 0) * (teamPlayer.position === 'Goalkeeper' || teamPlayer.position === 'Defender' ? 4 : teamPlayer.position === 'Midfielder' ? 1 : 0)
+                : 0,
               shotssaved: Math.floor((latestPlayerStat.shotssaved || 0) / 3), // Save points
               penaltysaved: (latestPlayerStat.penaltysaved || 0) * 5,
               yellowcard: -(latestPlayerStat.yellowcard || 0),

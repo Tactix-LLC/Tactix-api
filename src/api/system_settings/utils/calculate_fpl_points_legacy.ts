@@ -87,11 +87,15 @@ export default async (
       // Calculate FPL-compatible points
       let fantasy_point = 0;
 
-      // Playing time points
-      if (stat.minutesplayed >= 60) {
-        fantasy_point += pointSystem.playing_60_plus_minutes;
-      } else if (stat.minutesplayed > 0) {
-        fantasy_point += pointSystem.playing_under_60_minutes;
+      // Playing time points — award once per appearance, not once for total minutes.
+      // For DGW, starting11 is 2 (started both games), so we compute avg minutes/game
+      // and multiply the per-game bonus by the number of appearances.
+      const numAppearances = Math.max(1, (stat.starting11 || 0) + (stat.substitute || 0));
+      const avgMinutesPerGame = stat.minutesplayed / numAppearances;
+      if (avgMinutesPerGame >= 60) {
+        fantasy_point += pointSystem.playing_60_plus_minutes * numAppearances;
+      } else if (avgMinutesPerGame > 0) {
+        fantasy_point += pointSystem.playing_under_60_minutes * numAppearances;
       }
 
       // Goal points by position
@@ -115,17 +119,18 @@ export default async (
       // Assist points
       fantasy_point += stat.assist * pointSystem.assist;
 
-      // Clean sheet points (only if played 60+ minutes)
-      if (stat.minutesplayed >= 60 && stat.cleansheet === 1) {
+      // Clean sheet points — cleansheet is cumulative (0, 1, or 2 in a DGW).
+      // Award per clean sheet, requiring avg 60+ min per game.
+      if (avgMinutesPerGame >= 60 && stat.cleansheet > 0) {
         switch (stat.role) {
           case "Goalkeeper":
-            fantasy_point += pointSystem.goalkeeper_clean_sheet;
+            fantasy_point += stat.cleansheet * pointSystem.goalkeeper_clean_sheet;
             break;
           case "Defender":
-            fantasy_point += pointSystem.defender_clean_sheet;
+            fantasy_point += stat.cleansheet * pointSystem.defender_clean_sheet;
             break;
           case "Midfielder":
-            fantasy_point += pointSystem.midfielder_clean_sheet;
+            fantasy_point += stat.cleansheet * pointSystem.midfielder_clean_sheet;
             break;
         }
       }
@@ -176,12 +181,12 @@ export default async (
 
       // Calculate individual point values for direct properties (these show points, not raw stats)
       
-      // Playing time points
+      // Playing time points (per-appearance, same logic as fantasy_point above)
       let playingTimePoints = 0;
-      if (stat.minutesplayed >= 60) {
-        playingTimePoints = pointSystem.playing_60_plus_minutes;
-      } else if (stat.minutesplayed > 0) {
-        playingTimePoints = pointSystem.playing_under_60_minutes;
+      if (avgMinutesPerGame >= 60) {
+        playingTimePoints = pointSystem.playing_60_plus_minutes * numAppearances;
+      } else if (avgMinutesPerGame > 0) {
+        playingTimePoints = pointSystem.playing_under_60_minutes * numAppearances;
       }
       player.minutesplayed = playingTimePoints;
 
@@ -208,18 +213,18 @@ export default async (
       // Assist points
       player.assist = stat.assist * pointSystem.assist;
 
-      // Clean sheet points
+      // Clean sheet points (per-appearance, cumulative count)
       let cleanSheetPoints = 0;
-      if (stat.minutesplayed >= 60 && stat.cleansheet === 1) {
+      if (avgMinutesPerGame >= 60 && stat.cleansheet > 0) {
         switch (stat.role) {
           case "Goalkeeper":
-            cleanSheetPoints = pointSystem.goalkeeper_clean_sheet;
+            cleanSheetPoints = stat.cleansheet * pointSystem.goalkeeper_clean_sheet;
             break;
           case "Defender":
-            cleanSheetPoints = pointSystem.defender_clean_sheet;
+            cleanSheetPoints = stat.cleansheet * pointSystem.defender_clean_sheet;
             break;
           case "Midfielder":
-            cleanSheetPoints = pointSystem.midfielder_clean_sheet;
+            cleanSheetPoints = stat.cleansheet * pointSystem.midfielder_clean_sheet;
             break;
         }
       }
@@ -271,17 +276,8 @@ export default async (
       player.interceptionwon = stat.interceptionwon;
       player.clearance = stat.clearance;
 
-      // Add stat on the player
+      // Add stat on the player (preserve actual cumulative values for DGW)
       player.stat = { ...stat };
-      if (player.stat.starting11 === 2) {
-        player.stat.starting11 = 1;
-      }
-      if (player.stat.substitute === 2) {
-        player.stat.substitute = 1;
-      }
-      if (player.stat.cleansheet === 2) {
-        player.stat.cleansheet = 1;
-      }
 
       // Calculate points for captain and vice captain
       if (player.is_captain) {

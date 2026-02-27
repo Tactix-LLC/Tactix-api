@@ -64,11 +64,13 @@ async function fetchMatchesForRound(cid: string, round: string): Promise<any[]> 
     }
     all.push(...forRound);
     console.log(`[gw_create] fetchMatchesForRound page=${page} items=${items.length} forRound=${forRound.length} total=${all.length}`);
-    // Stop when we've passed the target round (e.g. page had round 25, we want 24)
+    // Stop only when EVERY match on this page is from a higher round than our
+    // target. Using minRound (not maxRound) avoids stopping early because of
+    // a single out-of-order DGW match with a much higher round number.
     if (forRound.length === 0 && items.length > 0) {
-      const maxRound = Math.max(...items.map((m: any) => Number(m.round) || 0));
-      if (maxRound > roundNum) {
-        console.log(`[gw_create] fetchMatchesForRound page=${page} maxRound=${maxRound} > ${roundNum}, stopping.`);
+      const minRound = Math.min(...items.map((m: any) => Number(m.round) || 0));
+      if (minRound > roundNum) {
+        console.log(`[gw_create] fetchMatchesForRound page=${page} minRound=${minRound} > ${roundNum}, all items past target, stopping.`);
         break;
       }
     }
@@ -737,8 +739,31 @@ export const fetchPlayerStat: RequestHandler = async (req, res, next) => {
       }
     });
 
+    // For DGW (multiple match IDs), the same player appears once per match.
+    // Merge entries by pid so downstream point calculation works correctly.
+    const mergedMap: { [pid: string]: Player } = {};
+    const NUMERIC_STAT_FIELDS: Array<keyof Player> = [
+      "minutesplayed", "goalscored", "assist", "passes", "shotsontarget",
+      "cleansheet", "shotssaved", "penaltysaved", "tacklesuccessful",
+      "yellowcard", "redcard", "owngoal", "goalsconceded", "penaltymissed",
+      "chancecreated", "starting11", "substitute", "blockedshot",
+      "interceptionwon", "clearance",
+    ];
+    for (const p of playerStat) {
+      const pid = String(p.pid);
+      if (!mergedMap[pid]) {
+        mergedMap[pid] = { ...p };
+      } else {
+        for (const field of NUMERIC_STAT_FIELDS) {
+          (mergedMap[pid] as any)[field] =
+            ((mergedMap[pid] as any)[field] || 0) + ((p as any)[field] || 0);
+        }
+      }
+    }
+    const mergedPlayerStat = Object.values(mergedMap);
+
     // Add to Redis
-    await GameWeek.addPlayerStat(gameWeek._id, playerStat);
+    await GameWeek.addPlayerStat(gameWeek._id, mergedPlayerStat);
 
     // Respond
     res.status(200).json({
@@ -965,6 +990,147 @@ export const addMatchId: RequestHandler = async (req, res, next) => {
       data: {
         gameWeek,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get match details for all match_ids stored in a game week
+export const getGameWeekMatches: RequestHandler = async (req, res, next) => {
+  try {
+    const gameWeek = await GameWeek.getGameWeekById(req.params.id);
+    if (!gameWeek) return next(new AppError("Game week not found", 404));
+
+    const matchIdSet = new Set<string>((gameWeek.match_ids ?? []).map(String));
+    if (matchIdSet.size === 0) {
+      return res.status(200).json({
+        status: "SUCCESS",
+        message: "No match IDs stored for this game week",
+        data: { matches: [], total: 0 },
+      });
+    }
+
+    const roundNum = parseInt(gameWeek.game_week) || 1;
+    const startPage = Math.max(1, roundNum - 2);
+    const endPage = roundNum + 6;
+
+    const matches: any[] = [];
+
+    for (let page = startPage; page <= endPage; page++) {
+      let resp: any;
+      try {
+        resp = await axios.get(
+          `${configs.entity_sport.url}/competition/${gameWeek.cid}/matches?token=${configs.entity_sport.token}&paged=${page}`
+        );
+      } catch (e: any) {
+        if (e?.response?.status === 404) break;
+        throw e;
+      }
+      if (resp.data.status !== "ok") break;
+      const items: any[] = resp.data.response?.items ?? [];
+      if (items.length === 0) break;
+
+      for (const m of items) {
+        if (matchIdSet.has(String(m.mid))) {
+          matches.push({
+            mid: m.mid,
+            round: m.round,
+            status: m.status_str,
+            date: m.datestart,
+            home: { name: m.teams?.home?.tname, abbr: m.teams?.home?.abbr, logo: m.teams?.home?.logo },
+            away: { name: m.teams?.away?.tname, abbr: m.teams?.away?.abbr, logo: m.teams?.away?.logo },
+            result: m.result
+              ? { home: m.result.home, away: m.result.away, winner: m.result.winner }
+              : null,
+            venue: m.venue?.name ?? null,
+            is_rescheduled: String(m.round) !== String(gameWeek.game_week),
+          });
+        }
+      }
+      // Stop early once we have all match IDs
+      if (matches.length === matchIdSet.size) break;
+    }
+
+    res.status(200).json({
+      status: "SUCCESS",
+      data: {
+        game_week: gameWeek.game_week,
+        matches,
+        total: matches.length,
+        total_stored_ids: matchIdSet.size,
+        missing: matchIdSet.size - matches.length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Remove a match ID from a game week's match list
+export const removeMatch: RequestHandler = async (req, res, next) => {
+  try {
+    const { matchId } = req.params;
+    const gameWeek = await GameWeek.getGameWeekById(req.params.id);
+    if (!gameWeek) return next(new AppError("Game week not found", 404));
+
+    const exists = (gameWeek.match_ids ?? []).map(String).includes(String(matchId));
+    if (!exists) return next(new AppError("Match ID not found in this game week", 404));
+
+    await GameWeek.removeMatchId({ id: req.params.id, matchId: String(matchId) });
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: `Match ${matchId} removed from GW${gameWeek.game_week}`,
+      data: { matchId },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Browse a page of matches from Entity Sport for a game week's competition
+// Used by admin to pick and manually add specific matches
+export const browseMatches: RequestHandler = async (req, res, next) => {
+  try {
+    const gameWeek = await GameWeek.getGameWeekById(req.params.id);
+    if (!gameWeek) return next(new AppError("Game week not found", 404));
+
+    const page = Math.max(1, parseInt(String(req.query.page)) || 1);
+    const existingIds = new Set<string>((gameWeek.match_ids ?? []).map(String));
+
+    let resp: any;
+    try {
+      resp = await axios.get(
+        `${configs.entity_sport.url}/competition/${gameWeek.cid}/matches?token=${configs.entity_sport.token}&paged=${page}`
+      );
+    } catch (e: any) {
+      if (e?.response?.status === 404) {
+        return res.status(200).json({ status: "SUCCESS", data: { matches: [], page, has_more: false } });
+      }
+      throw e;
+    }
+
+    if (resp.data.status !== "ok") {
+      return res.status(200).json({ status: "SUCCESS", data: { matches: [], page, has_more: false } });
+    }
+
+    const items: any[] = resp.data.response?.items ?? [];
+    const matches = items.map((m: any) => ({
+      mid: m.mid,
+      round: m.round,
+      status: m.status_str,
+      date: m.datestart,
+      home: { name: m.teams?.home?.tname, abbr: m.teams?.home?.abbr, logo: m.teams?.home?.logo },
+      away: { name: m.teams?.away?.tname, abbr: m.teams?.away?.abbr, logo: m.teams?.away?.logo },
+      result: m.result ? { home: m.result.home, away: m.result.away, winner: m.result.winner } : null,
+      venue: m.venue?.name ?? null,
+      already_added: existingIds.has(String(m.mid)),
+    }));
+
+    res.status(200).json({
+      status: "SUCCESS",
+      data: { matches, page, has_more: items.length > 0 },
     });
   } catch (error) {
     next(error);
