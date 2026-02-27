@@ -80,6 +80,7 @@ import notificationRouter from "../api/notification/router";
 import autoJoinLogRouter from "../api/auto_join_log/router";
 import contactRouter from "../api/contact/router";
 import subscriptionRouter from "../api/subscription/router";
+import fixtureRouter from "../api/fixture/router";
 
 // Use Routers
 app.use("/api/v1/admins", adminRouter);
@@ -123,6 +124,7 @@ app.use("/api/v1/notification", notificationRouter);
 app.use("/api/v1/auto-join-logs", autoJoinLogRouter);
 app.use("/api/v1/contact", contactRouter);
 app.use("/api/v1/subscription", subscriptionRouter);
+app.use("/api/v1/fixture", fixtureRouter);
 
 //Healthcheck endpoint
 app.get("/healthcheck", (req, res, next) => {

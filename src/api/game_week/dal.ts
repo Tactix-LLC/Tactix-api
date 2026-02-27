@@ -362,6 +362,23 @@ export default class GameWeekDAL {
     }
   }
 
+  // Remove Match ID
+  static async removeMatchId(data: {
+    id: string;
+    matchId: string;
+  }): Promise<IGameWeekDoc | null> {
+    try {
+      const gameWeek = await GameWeekModel.findByIdAndUpdate(
+        data.id,
+        { $pull: { match_ids: data.matchId } },
+        { runValidators: true, new: true }
+      );
+      return gameWeek;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Count game weeks created
   static async gameWeeksCreated(): Promise<number> {
     try {
